@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Logları</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        h2 { margin-top: 0; color: #2c3e50; }
+        .btn-home { display: inline-block; margin-bottom: 20px; padding: 8px 15px; background-color: #3498db; color: white; text-decoration: none; border-radius: 4px; transition: background 0.3s; }
+        .btn-home:hover { background-color: #2980b9; }
+        .filter-form { background: #ecf0f1; padding: 15px; border-radius: 6px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 13px; font-weight: bold; color: #2c3e50; }
+        .filter-group input, .filter-group select { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px; background-color: #fff; }
+        .btn-filter { padding: 8px 15px; background-color: #2ecc71; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; height: 35px; }
+        .btn-filter:hover { background-color: #27ae60; }
+        .btn-reset { padding: 8px 12px; background-color: #95a5a6; color: white; text-decoration: none; border-radius: 4px; font-size: 14px; height: 35px; display: inline-flex; align-items: center; }
+        .btn-reset:hover { background-color: #7f8c8d; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; font-size: 14px; }
+        th { background-color: #2c3e50; color: white; }
+        tr:hover { background-color: #f1f1f1; }
+        td.log-detail { font-weight: 500; color: #34495e; }
+        .no-logs { text-align: center; color: #7f8c8d; padding: 20px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Sistem Logları</h2>
+        <a href="{{ url_for('index') }}" class="btn-home">&larr; Ana Sayfa</a>
+
+        <!-- Filtreleme Formu (accept-charset eklendi) -->
+        <form method="GET" action="{{ url_for('view_logs') }}" accept-charset="UTF-8" class="filter-form">
+            
+            <!-- İşlem Türü Açılır Menüsü (Dinamik İçerik) -->
+            <div class="filter-group">
+                <label for="action">İşlem Türü:</label>
+                <select id="action" name="action">
+                    <option value="">Tüm İşlem Türleri</option>
+                    {% for act in action_types %}
+                        <option value="{{ act }}" {% if selected_action == act %}selected{% endif %}>{{ act }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="user">İşlemi Yapan:</label>
+                <input type="text" id="user" name="user" value="{{ request.args.get('user', '') }}" placeholder="Kullanıcı adı...">
+            </div>
+
+            <div class="filter-group">
+                <label for="target_user">Etkilenen Kullanıcı:</label>
+                <input type="text" id="target_user" name="target_user" value="{{ request.args.get('target_user', '') }}" placeholder="Hedef kullanıcı...">
+            </div>
+
+            <div class="filter-group">
+                <label for="start_date">Başlangıç Tarihi:</label>
+                <input type="date" id="start_date" name="start_date" value="{{ request.args.get('start_date', '') }}">
+            </div>
+
+            <div class="filter-group">
+                <label for="end_date">Bitiş Tarihi:</label>
+                <input type="date" id="end_date" name="end_date" value="{{ request.args.get('end_date', '') }}">
+            </div>
+
+            <button type="submit" class="btn-filter">Filtrele</button>
+            <a href="{{ url_for('view_logs') }}" class="btn-reset">Sıfırla</a>
+        </form>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Tarih</th>
+                    <th>İşlemi Yapan</th>
+                    <th>İşlem</th>
+                    <th>Hedef Kullanıcı</th>
+                    <th>Detay</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td><strong>{{ log.username }}</strong></td>
+                    <td>{{ log.action }}</td>
+                    <td><span style="color: #2980b9; font-weight: bold;">{{ log.target_user if log.target_user else '-' }}</span></td>
+                    <td class="log-detail">{{ log.details }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="no-logs">Aranan kriterlere uygun sistem logu bulunamadı.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

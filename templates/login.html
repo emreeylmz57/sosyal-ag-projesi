@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giriş Yap</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-md w-full space-y-8 bg-slate-800/60 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-slate-700/60">
+        
+        <!-- Başlık -->
+        <div class="text-center space-y-2">
+            <h1 class="text-2xl font-bold tracking-tight text-white">Sisteme Giriş Yap</h1>
+            <p class="text-xs text-slate-400">Devam etmek için lütfen kullanıcı bilgilerinizi girin.</p>
+        </div>
+
+        <!-- FLASH MESAJLARI -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-3">
+              {% for category, message in messages %}
+                <div class="p-3 rounded-xl text-xs font-medium border shadow-sm {% if category == 'error' %}bg-rose-500/10 text-rose-400 border-rose-500/20{% else %}bg-emerald-500/10 text-emerald-400 border-emerald-500/20{% endif %}">
+                    {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Form -->
+        <form method="POST" class="space-y-5">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+
+            <div>
+                <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Kullanıcı Adı</label>
+                <input type="text" id="username" name="username" required
+                       class="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+            </div>
+
+            <div>
+                <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">Şifre</label>
+                <input type="password" id="password" name="password" required
+                       class="w-full px-4 py-2.5 bg-slate-900/50 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+            </div>
+
+            <button type="submit" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-indigo-500/20 transition-all">
+                Giriş Yap
+            </button>
+        </form>
+
+        <!-- Alt Kayıt Linki -->
+        <div class="text-center pt-2">
+            <p class="text-xs text-slate-400">
+                Hesabın yok mu? <a href="{{ url_for('register') }}" class="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">Kayıt Ol</a>
+            </p>
+        </div>
+
+    </div>
+
+</body>
+</html>

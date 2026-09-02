@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mesajlar</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        #chatContainer::-webkit-scrollbar { width: 6px; }
+        #chatContainer::-webkit-scrollbar-track { background: transparent; }
+        #chatContainer::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        #chatContainer::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-8 px-4 sm:px-6 lg:px-8 relative">
+
+    <!-- TOAST BİLDİRİMLERİ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col space-y-3 max-w-sm w-full px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="toast-item pointer-events-auto animate-slide-down flex items-center p-4 rounded-2xl text-xs sm:text-sm font-medium shadow-xl border backdrop-blur-md transition-all duration-500
+                        {% if category == 'error' %} bg-rose-900/90 text-white border-rose-700 {% else %} bg-slate-900/90 text-white border-slate-800 {% endif %}">
+                <div class="flex-1 tracking-tight leading-relaxed">{{ message }}</div>
+                <button onclick="removeToast(this.closest('.toast-item'))" class="shrink-0 ml-3 text-slate-400 hover:text-white cursor-pointer">✕</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="max-w-6xl mx-auto">
+        
+        <!-- SOHBET ALANI ANA KART -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/85 overflow-hidden flex h-[680px]">
+            
+            <!-- SOL TARAF: LİSTE -->
+            <div class="w-1/3 border-r border-slate-200/80 flex flex-col bg-slate-50/40 h-full overflow-hidden shrink-0">
+                <div class="p-4 border-b border-slate-200/80 shrink-0 flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Sohbetlerim</h2>
+                    <a href="{{ url_for('index') }}" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-all cursor-pointer">
+                        &larr; Ana Sayfa
+                    </a>
+                </div>
+                
+                <div class="overflow-y-auto flex-1 divide-y divide-slate-100">
+                    {% if friends %}
+                        {% for friend in friends %}
+                            <a href="{{ url_for('messages', recipient_id=friend.id) }}" 
+                               class="flex items-center justify-between p-4 hover:bg-slate-100/70 transition-colors {% if active_recipient and active_recipient.id == friend.id %}bg-indigo-50/60 border-l-4 border-indigo-600{% endif %}">
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    {% if friend.profile_pic and friend.profile_pic != 'default.png' %}
+                                        <img src="{{ url_for('static', filename='profile_pics/' + friend.profile_pic) }}" class="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0">
+                                    {% else %}
+                                        <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs shrink-0">
+                                            {{ friend.username[0] | upper }}
+                                        </div>
+                                    {% endif %}
+                                    <div class="flex-1 min-w-0">
+                                        <h3 class="text-sm {% if friend.unread_count > 0 %}font-black text-slate-900{% else %}font-bold text-slate-700{% endif %} truncate">
+                                            {{ friend.username }}
+                                        </h3>
+                                    </div>
+                                </div>
+                                {% if friend.unread_count > 0 %}
+                                    <span class="shrink-0 ml-2 px-2.5 py-0.5 bg-indigo-600 text-white font-bold text-[10px] rounded-full animate-pulse">
+                                        {{ friend.unread_count }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                        {% endfor %}
+                    {% else %}
+                        <div class="p-8 text-center text-slate-400 text-xs italic">
+                            Henüz aktif bir sohbetiniz yok.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- SAĞ TARAF: MESAJLAŞMA PENCERESİ -->
+            <div class="w-2/3 flex flex-col h-full bg-white overflow-hidden">
+                {% if active_recipient %}
+                    <!-- Üst Başlık -->
+                    <div class="p-4 border-b border-slate-200/80 flex items-center justify-between bg-white shrink-0 z-10 h-[73px]">
+                        <div class="flex items-center space-x-3">
+                            {% if active_recipient.profile_pic and active_recipient.profile_pic != 'default.png' %}
+                                <img src="{{ url_for('static', filename='profile_pics/' + active_recipient.profile_pic) }}" class="w-9 h-9 rounded-full object-cover border">
+                            {% else %}
+                                <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                                    {{ active_recipient.username[0] | upper }}
+                                </div>
+                            {% endif %}
+                            <div>
+                                <h2 class="text-sm font-bold text-slate-900">{{ active_recipient.username }}</h2>
+                                <span class="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">● Aktif Sohbet</span>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <!-- Adminler İçin Sohbeti Temizle -->
+                            {% if user.is_admin %}
+                                <form action="{{ url_for('clear_chat', recipient_id=active_recipient.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu sohbet geçmişindeki TÜM mesajlar silinecek. Emin misiniz?');">
+                                    <button type="submit" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-medium rounded-xl text-xs border border-rose-200 cursor-pointer">
+                                        Sohbeti Temizle
+                                    </button>
+                                </form>
+                            {% endif %}
+
+                            {% if am_i_blocked %}
+                                <span class="px-3 py-1.5 bg-rose-50 text-rose-600 border border-rose-200 font-semibold rounded-xl text-xs">Engellendiniz</span>
+                            {% elif is_any_blocked %}
+                                <form action="{{ url_for('unblock_user', user_id=active_recipient.id) }}" method="POST" class="inline">
+                                    <button type="submit" class="px-3 py-1.5 bg-slate-800 text-white font-medium rounded-xl text-xs cursor-pointer">Engeli Kaldır</button>
+                                </form>
+                            {% else %}
+                                <form action="{{ url_for('block_user', user_id=active_recipient.id) }}" method="POST" class="inline" onsubmit="return confirm('Emin misiniz?');">
+                                    <button type="submit" class="px-3 py-1.5 bg-slate-100 text-slate-600 hover:text-rose-600 font-medium rounded-xl text-xs border border-slate-200 cursor-pointer">Engelle</button>
+                                </form>
+                            {% endif %}
+                            <button onclick="document.getElementById('reportModal').classList.remove('hidden')" class="px-3 py-1.5 bg-slate-100 text-slate-600 hover:text-amber-600 font-medium rounded-xl text-xs border border-slate-200 cursor-pointer">Şikayet Et</button>
+                        </div>
+                    </div>
+
+                    <!-- Mesaj Akışı -->
+                    <div id="chatContainer" class="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50/30 flex flex-col justify-end min-h-0">
+                        {% for msg in chat_messages %}
+                            <div class="flex flex-col {% if msg.sender_id == user.id %}items-end{% else %}items-start{% endif %}">
+                                <div class="max-w-[75%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm shadow-2xs break-words flex items-center gap-2 {% if msg.sender_id == user.id %}bg-indigo-600 text-white rounded-br-none{% else %}bg-white text-slate-800 border border-slate-200/80 rounded-bl-none{% endif %}">
+                                    <span>{{ msg.content }}</span>
+                                    
+                                    <!-- Admin veya Mesaj Sahibi için Tekil Mesajı Silme Butonu -->
+                                    {% if user.is_admin or msg.sender_id == user.id %}
+                                        <form action="{{ url_for('delete_message', message_id=msg.id) }}" method="POST" class="inline m-0">
+                                            <button type="submit" title="Mesajı Sil" class="text-[10px] opacity-60 hover:opacity-100 text-current font-bold cursor-pointer ml-1">✕</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                                <span class="text-[10px] text-slate-400 mt-1 px-1 font-mono">
+                                    {{ msg.timestamp.strftime('%H:%M') }}
+                                </span>
+                            </div>
+                        {% else %}
+                            <div class="h-full flex items-center justify-center text-slate-400 text-xs italic">
+                                Henüz mesaj geçmişi yok. İlk mesajı siz gönderin!
+                            </div>
+                        {% endfor %}
+                    </div>
+
+                    <!-- Mesaj Gönderme Alanı (Klasik Form Yapısı) -->
+                    <div class="p-4 border-t border-slate-200/80 bg-white shrink-0 z-20 h-[77px] flex items-center">
+                        {% if is_any_blocked %}
+                            <div class="w-full py-2 bg-slate-100 text-slate-500 rounded-2xl text-xs font-semibold text-center border border-slate-200">
+                                Engelleme durumundan dolayı mesaj gönderemezsiniz.
+                            </div>
+                        {% else %}
+                            <form action="{{ url_for('send_message', recipient_id=active_recipient.id) }}" method="POST" accept-charset="UTF-8" class="flex items-center gap-2 w-full m-0">
+                                <input type="text" name="content" placeholder="Mesajınızı yazın..." required autocomplete="off"
+                                       class="flex-1 px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-slate-50/50">
+                                <button type="submit" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-2xl shadow-lg transition-all shrink-0 cursor-pointer">
+                                    Gönder
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
+                        <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-2xl mb-2">💬</div>
+                        <h3 class="text-base font-bold text-slate-700">Bir sohbet seçin</h3>
+                        <p class="text-xs max-w-xs">Sol taraftaki listeden birine tıklayarak sohbeti açabilirsiniz.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ŞİKAYET MODALI -->
+    {% if active_recipient %}
+    <div id="reportModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-100">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                <h3 class="font-bold text-sm text-slate-900">Kullanıcıyı Şikayet Et</h3>
+                <button onclick="document.getElementById('reportModal').classList.add('hidden')" class="text-slate-400 text-xs font-bold cursor-pointer">✕</button>
+            </div>
+            <form action="{{ url_for('report_user', user_id=active_recipient.id) }}" method="POST" accept-charset="UTF-8" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Şikayet Sebebi</label>
+                    <textarea name="reason" rows="4" required placeholder="Neden şikayet ediyorsunuz?" class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-2xl outline-none"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('reportModal').classList.add('hidden')" class="px-4 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-semibold cursor-pointer">İptal</button>
+                    <button type="submit" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-semibold cursor-pointer">Gönder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        function removeToast(el) { if(el) el.remove(); }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const cc = document.getElementById('chatContainer');
+            if (cc) { cc.scrollTop = cc.scrollHeight; }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Yönetim Paneli</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js Kütüphanesi -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-7xl mx-auto space-y-8">
+        
+        <!-- ÜST BAŞLIK VE GERİ DÖN / ARŞİV BUTONU -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">Kullanıcı Yönetim Paneli</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Sistemdeki kayıtlı kullanıcıları listeleyebilir, puanlarını güncelleyebilir ve rollerini yönetebilirsiniz.</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- SİLİNEN HESAPLAR ARŞİV BUTONU -->
+                <a href="{{ url_for('admin_deleted_users') }}" class="inline-flex items-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl shadow-md shadow-amber-500/20 transition-all gap-1.5">
+                    🗑️ Silinen Hesaplar (Arşiv)
+                </a>
+                
+                <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl border border-slate-200 transition-all">
+                    ← Ana Sayfaya Dön
+                </a>
+            </div>
+        </div>
+
+        <!-- FLASH MESAJLARI -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-3">
+              {% for category, message in messages %}
+                <div class="p-4 rounded-xl text-sm font-medium border shadow-sm {% if category == 'error' %}bg-rose-50 text-rose-700 border-rose-200{% else %}bg-emerald-50 text-emerald-700 border-emerald-200{% endif %}">
+                    {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- DASHBOARD İSTATİSTİK GRAFİKLERİ -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">En Aktif Kullanıcılar</h3>
+                <p class="text-xs text-slate-500 mb-4">Sistemde en çok işlem yapan ilk 5 kullanıcı</p>
+                <div class="relative h-64">
+                    <canvas id="userActivityChart"></canvas>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8">
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Son 7 Günlük Girişler</h3>
+                <p class="text-xs text-slate-500 mb-4">Günlere göre sistem giriş istatistikleri</p>
+                <div class="relative h-64">
+                    <canvas id="loginChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- KULLANICI TABLOSU BÖLÜMÜ -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+            <div class="p-6 sm:px-8 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Kayıtlı Kullanıcılar</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Toplam Kullanıcı: <span class="font-semibold text-slate-700">{{ all_users|length }}</span></p>
+                </div>
+                
+                <a href="{{ url_for('add_user') }}" class="inline-flex items-center justify-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+                    + Yeni Kullanıcı Ekle
+                </a>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/80 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-100">
+                            <th class="py-4 px-6">ID</th>
+                            <th class="py-4 px-6">Kullanıcı Adı</th>
+                            <th class="py-4 px-6">E-Posta</th>
+                            <th class="py-4 px-6">Şifre</th>
+                            <th class="py-4 px-6">Puan</th>
+                            <th class="py-4 px-6">Rol</th>
+                            <th class="py-4 px-6 text-right">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        {% for u in all_users %}
+                            <tr class="hover:bg-slate-50/60 transition-colors">
+                                <td class="py-4 px-6 font-mono text-xs text-slate-400">{{ u.id }}</td>
+                                
+                                <!-- Kullanıcı Adı ve Profil Resmi -->
+                                <td class="py-4 px-6">
+                                    <div class="flex items-center space-x-3">
+                                        <a href="{{ url_for('user_profile', user_id=u.id) }}" class="inline-flex items-center space-x-3 text-slate-800 hover:text-indigo-600 font-semibold transition-colors group">
+                                            
+                                            {% if u.profile_pic and u.profile_pic != 'default.png' %}
+                                                <img src="{{ url_for('static', filename='profile_pics/' + u.profile_pic) }}" 
+                                                     alt="{{ u.username }}"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-100\'>{{ u.username[0] | upper }}</div>';"
+                                                     class="w-9 h-9 rounded-full object-cover shadow-sm border border-slate-200">
+                                            {% else %}
+                                                <div class="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold shadow-sm border border-indigo-100">
+                                                    {{ u.username[0] | upper }}
+                                                </div>
+                                            {% endif %}
+
+                                            <span class="group-hover:underline">{{ u.username }}</span>
+                                        </a>
+
+                                        {% if u.profile_pic and u.profile_pic != 'default.png' %}
+                                            <form action="{{ url_for('admin_delete_profile_pic', user_id=u.id) }}" method="POST" class="inline ml-1" onsubmit="return confirm('Bu kullanıcının profil resmini silmek istediğinize emin misiniz?');">
+                                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                                <button type="submit" title="Profil Resmini Sil" class="p-1 text-rose-500 hover:bg-rose-50 hover:text-rose-700 rounded-md transition-all">
+                                                    🗑️ <span class="text-[10px] font-semibold underline">Resmi Sil</span>
+                                                </button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <td class="py-4 px-6 text-slate-600">{{ u.email }}</td>
+                                <td class="py-4 px-6 font-mono text-xs text-rose-500">{{ u.password_hash }}</td>
+                                
+                                <!-- Puan Güncelleme Formu -->
+                                <td class="py-4 px-6">
+                                    <form action="{{ url_for('update_points', user_id=u.id) }}" method="POST" class="flex items-center space-x-2" onsubmit="saveScrollPosition()">
+                                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                        <input type="number" name="points" value="{{ u.points }}" required
+                                               class="w-24 px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                                        <button type="submit" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-sm transition-all">
+                                            Kaydet
+                                        </button>
+                                    </form>
+                                </td>
+
+                                <!-- Roller -->
+                                <td class="py-4 px-6">
+                                    <div class="flex flex-wrap gap-1">
+                                        {% if u.is_admin %}
+                                            <span class="font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md text-xs">Admin</span>
+                                        {% endif %}
+                                        {% for r in u.roles %}
+                                            <span class="font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md text-xs">{{ r.name }}</span>
+                                        {% endfor %}
+                                        {% if not u.is_admin and not u.roles %}
+                                            <span class="text-slate-400 text-xs italic">Kullanıcı</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+
+                                <!-- İşlem Butonları -->
+                                <td class="py-4 px-6 text-right space-x-2 whitespace-nowrap">
+                                    <a href="{{ url_for('edit_user', user_id=u.id) }}" class="inline-flex items-center px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all">
+                                        Düzenle / Rol Ver
+                                    </a>
+
+                                    {% if u.id != user.id %}
+                                        <form action="{{ url_for('delete_user', user_id=u.id) }}" method="POST" class="inline" onsubmit="saveScrollPosition()">
+                                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                            <button type="submit" onclick="return confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?');" class="inline-flex items-center px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-all">
+                                                Sil
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="text-xs text-slate-400 italic px-2">(Siz)</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="py-8 text-center text-slate-400 italic">
+                                    Gösterilecek kullanıcı bulunamadı.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Grafik Verilerini Çeken ve Çizen Script & Scroll Hafızası -->
+    <script>
+    function saveScrollPosition() {
+        localStorage.setItem('scrollPosition', window.scrollY);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const scrollPos = localStorage.getItem('scrollPosition');
+        if (scrollPos !== null) {
+            window.scrollTo(0, parseInt(scrollPos));
+            localStorage.removeItem('scrollPosition');
+        }
+    });
+
+    fetch('/admin/stats')
+        .then(res => res.json())
+        .then(data => {
+            // En Aktif Kullanıcılar (Bar Grafik)
+            new Chart(document.getElementById('userActivityChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.top_users.map(u => u.username),
+                    datasets: [{
+                        label: 'İşlem Sayısı',
+                        data: data.top_users.map(u => u.count),
+                        backgroundColor: '#6366f1',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } }
+                }
+            });
+
+            // Son 7 Günlük Girişler (Line Grafik - Eksen Düzeltmeli)
+            new Chart(document.getElementById('loginChart'), {
+                type: 'line',
+                data: {
+                    labels: data.daily_logins.map(d => d.date),
+                    datasets: [{
+                        label: 'Giriş Sayısı',
+                        data: data.daily_logins.map(d => d.count),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true, // Eksi değerleri (-0.2, -0.4 gibi) engeller, 0'dan başlatır
+                            ticks: {
+                                stepSize: 1,     // Sayıların 0, 1, 2 şeklinde tamsayı olarak artmasını sağlar
+                                precision: 0     // Ondalıklı basamak gösterilmesini önler
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(err => console.error('İstatistikler yüklenirken hata oluştu:', err));
+    </script>
+
+</body>
+</html>

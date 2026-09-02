@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Silinen Gönderiler (Çöp Kutusu)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4">
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- ÜST BAŞLIK VE GERİ DÖN -->
+        <div class="flex items-center justify-between bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <h1 class="text-sm font-bold uppercase tracking-wider text-slate-800">🗑️ Silinen Gönderiler Arşivi (Çöp Kutusu)</h1>
+            <a href="{{ url_for('admin_reports') }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-all">← Şikayet Paneline Dön</a>
+        </div>
+
+        <!-- LİSTELEME TABLOSU -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-slate-100 text-slate-400 uppercase tracking-wider">
+                            <th class="py-3 px-4">Gönderi Sahibi</th>
+                            <th class="py-3 px-4">İçerik</th>
+                            <th class="py-3 px-4">Silen Kişi</th>
+                            <th class="py-3 px-4">Silme Sebebi</th>
+                            <th class="py-3 px-4">Silinme Tarihi</th>
+                            <th class="py-3 px-4 text-right">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% if deleted_posts %}
+                            {% for item in deleted_posts %}
+                            {% set author_obj = User.query.get(item.author_id) %}
+                            {% set deleter_obj = User.query.get(item.deleted_by_id) %}
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="py-3 px-4 font-bold text-indigo-600">@{{ author_obj.username if author_obj else 'Bilinmeyen' }}</td>
+                                <td class="py-3 px-4 text-slate-700 max-w-xs truncate" title="{{ item.content }}">{{ item.content }}</td>
+                                <td class="py-3 px-4 font-semibold text-rose-600">@{{ deleter_obj.username if deleter_obj else 'Bilinmeyen' }}</td>
+                                <!-- Silme Sebebi -->
+                                <td class="py-3 px-4 text-rose-600 font-medium max-w-xs truncate" title="{{ item.delete_reason }}">
+                                    {{ item.delete_reason if item.delete_reason else 'Belirtilmemiş' }}
+                                </td>
+                                <td class="py-3 px-4 text-slate-400 font-mono text-[10px]">
+                                    <!-- Python tarafında zaten 3 saat eklendiği için doğrudan yazdırıyoruz -->
+                                    {{ item.deleted_at.strftime('%d.%m.%Y %H:%M') if item.deleted_at else 'Tarih yok' }}
+                                </td>
+                                <td class="py-3 px-4 text-right">
+                                    <form action="{{ url_for('restore_post', del_id=item.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu gönderiyi geri yüklemek istediğinize emin misiniz?');">
+                                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                        <button type="submit" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-600 hover:text-white font-semibold rounded-xl transition-all shadow-sm">
+                                            Geri Yükle
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="py-8 text-center text-slate-400 italic">Çöp kutusunda silinmiş gönderi bulunmuyor.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

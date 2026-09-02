@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gönderi Detayı - {{ post.author.username }}</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8 relative">
+
+    <!-- TOAST BİLDİRİMLERİ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col space-y-3 max-w-sm w-full px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="toast-item pointer-events-auto animate-slide-down flex items-center p-4 rounded-2xl text-xs sm:text-sm font-medium shadow-xl border backdrop-blur-md transition-all duration-500
+                        {% if category == 'error' %} bg-rose-900/90 text-white border-rose-700 shadow-rose-900/20 {% else %} bg-slate-900/90 text-white border-slate-800 shadow-slate-900/20 {% endif %}">
+                <div class="flex-1 tracking-tight leading-relaxed">{{ message }}</div>
+                <button onclick="removeToast(this.closest('.toast-item'))" class="shrink-0 ml-3 text-slate-400 hover:text-white transition-colors">✕</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="max-w-2xl mx-auto space-y-6">
+        
+        <!-- Geri Dön Linki -->
+        <div>
+            <a href="#" onclick="goBack(event)" class="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center gap-1">
+                &larr; Geri Dön
+            </a>
+        </div>
+
+        <!-- Gönderi Detay Kartı -->
+        <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl border border-slate-100 space-y-6">
+            
+            <!-- Üst Bilgi (Yazar, Tarih, Düzenle ve Sil Butonları) -->
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm border border-indigo-100">
+                        {{ post.author.username[0] | upper }}
+                    </div>
+                    <div>
+                        <a href="{{ url_for('user_profile', user_id=post.author.id) }}" class="font-bold text-slate-900 hover:text-indigo-600 transition-colors">
+                            {{ post.author.username }}
+                        </a>
+                        <p class="text-[11px] text-slate-400">
+                            {{ post.created_at.strftime('%d.%m.%Y %H:%M') }} • 
+                            <span class="font-medium text-slate-600 uppercase">{{ post.visibility }}</span>
+                            {% if post.is_edited %}<span class="italic ml-1">(düzenlendi)</span>{% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Gönderi Sahibi veya Admin İçin Düzenle ve Sil Butonları -->
+                <div class="flex items-center gap-2">
+                    {% if post.user_id == current_user.id %}
+                        <button type="button" onclick="openEditPostModal({{ post.id }}, `{{ post.content | replace('`', '\\`') }}`)" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-xs font-semibold transition-all">
+                            Düzenle
+                        </button>
+                    {% endif %}
+                    {% if is_admin or post.user_id == current_user.id %}
+                        <form action="{{ url_for('delete_post', post_id=post.id) }}" method="POST" onsubmit="return confirm('Bu gönderiyi silmek istediğinize emin misiniz?');" class="inline">
+                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                            <button type="submit" class="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-xs font-semibold transition-all">
+                                Sil
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Gönderi Metni -->
+            <div class="text-slate-800 text-base whitespace-pre-wrap leading-relaxed">
+                {{ post.content }}
+            </div>
+
+            <!-- Alt Etiketler ve Beğeni Sayısı -->
+            <div class="flex items-center justify-between pt-4 border-t border-slate-100 text-xs text-slate-500">
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1.5 bg-rose-50 text-rose-600 font-semibold rounded-xl flex items-center gap-1">
+                        ❤️ Beğenildi ({{ post.likes|length }})
+                    </span>
+                </div>
+                <span class="px-3 py-1.5 bg-amber-50 text-amber-700 font-semibold rounded-xl uppercase">
+                    Gizlilik: {{ post.visibility }}
+                </span>
+            </div>
+
+            <!-- ================= YORUMLAR BÖLÜMÜ ================= -->
+            <div class="space-y-4 pt-4 border-t border-slate-100">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    YORUMLAR ({{ post.comments|length }})
+                </h4>
+
+                <!-- Yorum Yazma Alanı -->
+                <form action="{{ url_for('view_single_post', post_id=post.id) }}" method="POST" class="flex flex-col sm:flex-row gap-2 pt-2">
+                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                    <input type="hidden" name="form_type" value="add_comment">
+                    <input type="text" name="content" placeholder="Bir yorum yaz..." required 
+                           class="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+                    <button type="submit" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition-all shadow-sm">
+                        Yorum Yap
+                    </button>
+                </form>
+
+                <!-- Yapılan Yorumların Listesi ve Yetki Butonları -->
+                <div class="space-y-3 pt-2">
+                    {% if post.comments %}
+                        {% for comment in post.comments %}
+                            <div class="p-4 rounded-xl bg-slate-50/80 border border-slate-100 space-y-2" id="comment-{{ comment.id }}">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ url_for('user_profile', user_id=comment.author.id) }}" class="text-xs font-bold text-indigo-600 hover:underline">
+                                            @{{ comment.author.username }}
+                                        </a>
+                                        <span class="text-[10px] text-slate-400">
+                                            {{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                            {% if comment.is_edited %}<span class="italic">(Düzenlendi)</span>{% endif %}
+                                        </span>
+                                    </div>
+
+                                    <!-- Düzenle ve Sil Butonları -->
+                                    <div class="flex items-center gap-1.5">
+                                        {% if comment.user_id == current_user.id %}
+                                            <button onclick="toggleEdit({{ comment.id }})" class="text-[11px] text-slate-500 hover:text-indigo-600 font-medium px-2 py-0.5 rounded bg-slate-200/60 transition-colors">Düzenle</button>
+                                        {% endif %}
+                                        {% if is_admin or comment.user_id == current_user.id %}
+                                            <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="POST" onsubmit="return confirm('Bu yorumu silmek istiyor musunuz?');" class="inline">
+                                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                                <button type="submit" class="text-[11px] text-rose-600 hover:text-rose-700 font-medium px-2 py-0.5 rounded bg-rose-50 transition-colors">Sil</button>
+                                            </form>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Normal Yorum Metni -->
+                                <p class="text-xs text-slate-700 whitespace-pre-wrap" id="comment-text-{{ comment.id }}">{{ comment.content }}</p>
+
+                                <!-- Gizli Düzenleme Formu (Python tarafındaki comment_content ile uyumlu hale getirildi) -->
+                                {% if comment.user_id == current_user.id %}
+                                    <form action="{{ url_for('edit_comment', comment_id=comment.id) }}" method="POST" id="edit-form-{{ comment.id }}" class="hidden space-y-2 pt-2">
+                                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                        <textarea name="comment_content" rows="2" class="w-full text-xs p-2.5 bg-white border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500/20">{{ comment.content }}</textarea>
+                                        <div class="flex justify-end gap-2">
+                                            <button type="button" onclick="toggleEdit({{ comment.id }})" class="px-3 py-1 text-[11px] bg-slate-200 text-slate-700 rounded-lg">İptal</button>
+                                            <button type="submit" class="px-3 py-1 text-[11px] bg-indigo-600 text-white font-semibold rounded-lg">Kaydet</button>
+                                        </div>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic py-2">Henüz yorum yapılmamış. İlk yorumu sen yap!</p>
+                    {% endif %}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- GÖNDERİ DÜZENLEME MODALI -->
+    <div id="editPostModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Gönderiyi Düzenle</h3>
+            <form id="editPostForm" method="POST" class="space-y-3">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <textarea name="content" id="editPostContent" rows="4" required class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 resize-none"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeEditPostModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">İptal</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md">Değişiklikleri Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        if (document.referrer && !document.referrer.includes('/post/')) {
+            sessionStorage.setItem('returnPage', document.referrer);
+        }
+        document.querySelectorAll('.toast-item').forEach(toast => {
+            setTimeout(() => { removeToast(toast); }, 2000);
+        });
+    });
+
+    function goBack(event) {
+        event.preventDefault();
+        const savedPage = sessionStorage.getItem('returnPage');
+        if (savedPage) {
+            window.location.href = savedPage;
+        } else if (document.referrer && document.referrer !== window.location.href) {
+            window.history.back();
+        } else {
+            window.location.href = "{{ url_for('index') }}";
+        }
+    }
+
+    function openEditPostModal(postId, content) {
+        document.getElementById('editPostContent').value = content;
+        document.getElementById('editPostForm').action = `/edit_post/${postId}`;
+        document.getElementById('editPostModal').classList.remove('hidden');
+    }
+
+    function closeEditPostModal() {
+        document.getElementById('editPostModal').classList.add('hidden');
+    }
+
+    function toggleEdit(commentId) {
+        const textEl = document.getElementById(`comment-text-${commentId}`);
+        const formEl = document.getElementById(`edit-form-${commentId}`);
+        if (formEl.classList.contains('hidden')) {
+            formEl.classList.remove('hidden');
+            textEl.classList.add('hidden');
+        } else {
+            formEl.classList.add('hidden');
+            textEl.classList.remove('hidden');
+        }
+    }
+
+    function removeToast(toastElement) {
+        if (!toastElement) return;
+        toastElement.style.opacity = '0';
+        setTimeout(() => { toastElement.remove(); }, 400);
+    }
+    </script>
+</body>
+</html>

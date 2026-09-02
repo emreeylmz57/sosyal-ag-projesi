@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Düzenle & Yetki Matrisi</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 relative">
+
+    <!-- SAĞ ÜST KÖŞE MODERN TOAST POP-UP BİLDİRİMLERİ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col space-y-3 max-w-sm w-full px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="toast-item pointer-events-auto animate-slide-down flex items-center p-4 rounded-2xl text-xs sm:text-sm font-medium shadow-xl border backdrop-blur-md transition-all duration-500
+                        {% if category == 'error' %}
+                            bg-rose-900/90 text-white border-rose-700 shadow-rose-900/20
+                        {% else %}
+                            bg-slate-900/90 text-white border-slate-800 shadow-slate-900/20
+                        {% endif %}">
+                <div class="shrink-0 mr-3">
+                    {% if category == 'error' %}
+                        <div class="w-7 h-7 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </div>
+                    {% else %}
+                        <div class="w-7 h-7 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex-1 tracking-tight leading-relaxed">{{ message }}</div>
+                <button onclick="removeToast(this.closest('.toast-item'))" class="shrink-0 ml-3 text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="max-w-3xl mx-auto space-y-8">
+        
+        <!-- Üst Başlık ve Profil Bilgisi -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div class="flex items-center space-x-4">
+                
+                <!-- PROFİL RESMİ VEYA HARF AVATARI -->
+                {% if user_to_edit.profile_pic and user_to_edit.profile_pic != 'default.png' %}
+                    <img src="{{ url_for('static', filename='profile_pics/' + user_to_edit.profile_pic) }}" 
+                         alt="{{ user_to_edit.username }}"
+                         class="w-16 h-16 rounded-2xl object-cover border-2 border-indigo-100 shadow-md">
+                {% else %}
+                    <div class="w-16 h-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-2xl shadow-md border border-indigo-100">
+                        {{ user_to_edit.username[0] | upper }}
+                    </div>
+                {% endif %}
+
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-2xl font-bold tracking-tight text-slate-900">{{ user_to_edit.username }}</h1>
+                        {% if user_to_edit.is_admin %}
+                            <span class="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 text-[10px] font-bold rounded-md uppercase tracking-wider">Admin</span>
+                        {% endif %}
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Kullanıcı ID: <span class="font-mono text-indigo-600">#{{ user_to_edit.id }}</span></p>
+                </div>
+            </div>
+
+            <!-- Geri Dön Butonu -->
+            <button type="button" onclick="window.history.back()" class="w-full sm:w-auto inline-flex items-center justify-center space-x-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl transition-all border border-slate-200">
+                <span>&larr; Geri Dön</span>
+            </button>
+        </div>
+
+        <!-- Ana Form Kartı -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8">
+            <form action="{{ url_for('edit_user', user_id=user_to_edit.id) }}" method="POST" class="space-y-8">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                
+                <!-- TEMEL BİLGİLER -->
+                {% if current_user.is_admin %}
+                <div class="space-y-5">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                        <span>✦</span> Temel Hesap Bilgileri
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Kullanıcı Adı</label>
+                            <input type="text" id="username" name="username" value="{{ user_to_edit.username }}" required
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+
+                        <div>
+                            <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">E-Posta Adresi</label>
+                            <input type="email" id="email" name="email" value="{{ user_to_edit.email }}" required
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label for="points" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Puan</label>
+                            <input type="number" id="points" name="points" value="{{ user_to_edit.points }}" required
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Şifre Hash / Yeni Şifre</label>
+                            <input type="text" id="password" name="password" placeholder="Değiştirmek istemiyorsanız boş bırakın"
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-slate-100">
+                {% endif %}
+
+                <!-- ÇOKLU ROL ATAMA BÖLÜMÜ -->
+                {% if current_user.is_admin or current_user.has_assign_role_permission() %}
+                <div class="space-y-4">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                        <span>✦</span> Rol Atamaları
+                    </h2>
+                    
+                    {% if assignable_roles %}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {% for r in assignable_roles | sort(attribute='priority') %}
+                                <label for="role_{{ r.id }}" class="flex items-center space-x-3 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/70 cursor-pointer hover:border-indigo-500/50 hover:bg-white transition-all shadow-sm">
+                                    <input type="checkbox" id="role_{{ r.id }}" name="role_ids" value="{{ r.id }}"
+                                           {% if r in user_to_edit.roles %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="flex items-center justify-between flex-1">
+                                        <span class="font-bold text-sm" style="color: {{ r.color }};">{{ r.name }}</span>
+                                        <span class="text-xs text-slate-400 bg-white px-2 py-0.5 rounded-md border border-slate-200/60">Öncelik: {{ r.priority }}</span>
+                                    </span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic">Atanabilecek uygun rol bulunamadı.</p>
+                    {% endif %}
+                </div>
+
+                <hr class="border-slate-100">
+                {% endif %}
+
+                <!-- BİREYSEL YETKİ VE DELEGASYON MATRİSİ -->
+                {% if current_user.is_admin or current_user.can_delegate_delete() or current_user.can_delegate_points() or current_user.can_delegate_role() or current_user.can_grant_ban_permission or current_user.can_delegate_comment_delete() %}
+                    <div class="space-y-4">
+                        <div>
+                            <h2 class="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
+                                <span>✦</span> Özel Yetki ve Delegasyon Matrisi
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Bu kutular kullanıcının temel yetkilerini ve bu yetkileri başkalarına verebilme haklarını belirler.</p>
+                        </div>
+
+                        <div class="space-y-3">
+                            <!-- 1. Silme Yetkileri -->
+                            {% if current_user.is_admin or current_user.can_delegate_delete() %}
+                            <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2.5 shadow-sm">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="can_delete_users" name="can_delete_users" {% if user_to_edit.can_delete_users %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-bold text-slate-800">Özel Kullanıcı Silme Yetkisi</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer pl-7 pt-1.5 border-t border-slate-200/60">
+                                    <input type="checkbox" id="can_grant_delete_permission" name="can_grant_delete_permission" {% if user_to_edit.can_grant_delete_permission %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs font-semibold text-slate-600">Başkalarına Silme Yetkisi Verebilme</span>
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <!-- 2. Puan Değiştirme Yetkileri -->
+                            {% if current_user.is_admin or current_user.can_delegate_points() %}
+                            <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2.5 shadow-sm">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="can_edit_points" name="can_edit_points" {% if user_to_edit.can_edit_points %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-bold text-slate-800">Özel Puan Değiştirme Yetkisi</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer pl-7 pt-1.5 border-t border-slate-200/60">
+                                    <input type="checkbox" id="can_grant_points_permission" name="can_grant_points_permission" {% if user_to_edit.can_grant_points_permission %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs font-semibold text-slate-600">Başkalarına Puan Yetkisi Verebilme</span>
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <!-- 3. Rol Atama Yetkileri -->
+                            {% if current_user.is_admin or current_user.can_delegate_role() %}
+                            <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2.5 shadow-sm">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="can_assign_roles" name="can_assign_roles" {% if user_to_edit.can_assign_roles %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-bold text-slate-800">Özel Rol Atama / Verme Yetkisi</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer pl-7 pt-1.5 border-t border-slate-200/60">
+                                    <input type="checkbox" id="can_grant_role_permission" name="can_grant_role_permission" {% if user_to_edit.can_grant_role_permission %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs font-semibold text-slate-600">Başkalarına Rol Verme Yetkisi Verebilme</span>
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <!-- 4. Banlama ve Ban Yetkisi Verme -->
+                            {% if current_user.is_admin or current_user.can_grant_ban_permission %}
+                            <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2.5 shadow-sm">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="can_ban_users" name="can_ban_users" {% if user_to_edit.can_ban_users %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-bold text-slate-800">Kullanıcılara Ban Atabilme Yetkisi</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer pl-7 pt-1.5 border-t border-slate-200/60">
+                                    <input type="checkbox" id="can_grant_ban_permission" name="can_grant_ban_permission" {% if user_to_edit.can_grant_ban_permission %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs font-semibold text-slate-600">Başkalarına Ban Atma Yetkisi Verebilme</span>
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <!-- 5. Cevap Silme ve Yetki Verme -->
+                            {% if current_user.is_admin or current_user.can_delegate_comment_delete() %}
+                            <div class="bg-slate-50/80 p-4 rounded-xl border border-slate-200/70 space-y-2.5 shadow-sm">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" id="can_delete_comments" name="can_delete_comments" {% if user_to_edit.can_delete_comments %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-bold text-slate-800">Cevapları Silme Yetkisi</span>
+                                </label>
+                                <label class="flex items-center space-x-3 cursor-pointer pl-7 pt-1.5 border-t border-slate-200/60">
+                                    <input type="checkbox" id="can_grant_delete_comments_permission" name="can_grant_delete_comments_permission" {% if user_to_edit.can_grant_delete_comments_permission %}checked{% endif %}
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs font-semibold text-slate-600">Başkalarına Cevap Silme Yetkisi Verebilme</span>
+                                </label>
+                            </div>
+                            {% endif %}
+
+                            <!-- Sadece Adminlerin Görebileceği Sistem Yöneticisi Kutusu -->
+                            {% if current_user.is_admin %}
+                                <div class="bg-rose-50/70 p-4 rounded-xl border border-rose-200 shadow-sm">
+                                    <label class="flex items-center space-x-3 cursor-pointer">
+                                        <input type="checkbox" name="is_admin" {% if user_to_edit.is_admin %}checked{% endif %}
+                                               class="w-4 h-4 text-rose-600 rounded border-rose-300 focus:ring-rose-500">
+                                        <span class="text-sm font-bold text-rose-700">Sistem Yöneticisi (Admin) Yap</span>
+                                    </label>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Form Butonları -->
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="window.history.back()" class="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        İptal
+                    </button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-lg shadow-indigo-500/25 transition-all">
+                        Değişiklikleri Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scriptler (Toast Yönetimi ve Akıllı Yetki Kontrolü) -->
+    <script>
+    function removeToast(toastElement) {
+        if (!toastElement) return;
+        toastElement.style.opacity = '0';
+        toastElement.style.transform = 'translateY(-12px)';
+        setTimeout(() => {
+            toastElement.remove();
+            const container = document.getElementById('toastContainer');
+            if (container && container.children.length === 0) container.remove();
+        }, 400);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // Toast bildirimlerini otomatik gizleme
+        document.querySelectorAll('.toast-item').forEach(toast => {
+            setTimeout(() => { removeToast(toast); }, 2500);
+        });
+
+        // Temel Yetki Seçilmeden "Verebilme" Seçilmesini Engelleyen Akıllı Kontrol
+        const links = [
+            { main: document.getElementById('can_delete_users'), grant: document.getElementById('can_grant_delete_permission') },
+            { main: document.getElementById('can_edit_points'), grant: document.getElementById('can_grant_points_permission') },
+            { main: document.getElementById('can_assign_roles'), grant: document.getElementById('can_grant_role_permission') },
+            { main: document.getElementById('can_ban_users'), grant: document.getElementById('can_grant_ban_permission') },
+            { main: document.getElementById('can_delete_comments'), grant: document.getElementById('can_grant_delete_comments_permission') }
+        ];
+
+        links.forEach(item => {
+            if (item.main && item.grant) {
+                item.grant.addEventListener('change', function() {
+                    if (this.checked && !item.main.checked) {
+                        alert("Önce bu temel yetkiyi seçmelisiniz!");
+                        this.checked = false;
+                    }
+                });
+
+                item.main.addEventListener('change', function() {
+                    if (!this.checked) {
+                        item.grant.checked = false;
+                    }
+                });
+            }
+        });
+    });
+    </script>
+</body>
+</html>

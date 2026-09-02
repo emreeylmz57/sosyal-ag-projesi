@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Ban Kayıtları ve Sebepleri</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- Üst Başlık ve Geri Dön -->
+        <div class="flex items-center justify-between bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    🚫 Sistem Ban Kayıtları ve Sebepleri
+                </h1>
+                <p class="text-xs text-slate-500 mt-1">Atılan tüm banları, sürelerini, durumlarını ve sebeplerini buradan denetleyebilirsiniz.</p>
+            </div>
+            <a href="{{ url_for('index') }}" class="text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl transition-all">
+                &larr; Ana Sayfaya Dön
+            </a>
+        </div>
+
+        <!-- Ban Listesi Tablosu -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            {% if all_bans %}
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-[10px]">
+                                <th class="py-3 px-4">Durum</th>
+                                <th class="py-3 px-4">Banlanan Kullanıcı</th>
+                                <th class="py-3 px-4">Banı Veren Admin</th>
+                                <th class="py-3 px-4">Ban Sebebi</th>
+                                <th class="py-3 px-4">Başlangıç Tarihi</th>
+                                <th class="py-3 px-4">Verilen Süre</th>
+                                <th class="py-3 px-4">Bitiş Süresi</th>
+                                <th class="py-3 px-4 text-right">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for b in all_bans %}
+                                <!-- Python tarafında sürenin bitip bitmediğini kontrol ediyoruz -->
+                                {% set is_expired = b.expires_at and b.expires_at < now %}
+                                
+                                <tr class="transition-colors {% if is_expired %}bg-slate-50/70 opacity-60 hover:opacity-100{% else %}hover:bg-slate-50/80{% endif %}">
+                                    
+                                    <!-- Durum Rozeti -->
+                                    <td class="py-3.5 px-4">
+                                        {% if not b.expires_at %}
+                                            <span class="inline-block px-2 py-0.5 bg-rose-100 text-rose-700 text-[10px] font-bold rounded-md">Sınırsız</span>
+                                        {% elif is_expired %}
+                                            <span class="inline-block px-2 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-bold rounded-md">Süresi Doldu</span>
+                                        {% else %}
+                                            <span class="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md">Aktif</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <td class="py-3.5 px-4 font-bold text-slate-800">
+                                        <a href="{{ url_for('user_profile', user_id=b.user.id) }}" class="text-indigo-600 hover:underline">
+                                            {{ b.user.username }}
+                                        </a>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-600">
+                                        {{ b.admin.username if b.admin else 'Sistem' }}
+                                    </td>
+                                    <td class="py-3.5 px-4 text-slate-700 font-medium max-w-xs truncate" title="{{ b.reason }}">
+                                        {{ b.reason or 'Sebep belirtilmedi' }}
+                                    </td>
+                                    <!-- Başlangıç Tarihi -->
+                                    <td class="py-3.5 px-4 text-slate-600 font-mono">
+                                        {{ b.timestamp.strftime('%d.%m.%Y %H:%M') if b.timestamp else '-' }}
+                                    </td>
+                                    <!-- Verilen Süre Hesaplaması -->
+                                    <td class="py-3.5 px-4 font-semibold text-slate-700">
+                                        {% if b.expires_at and b.timestamp %}
+                                            {% set diff_seconds = (b.expires_at - b.timestamp).total_seconds() %}
+                                            {% set diff_hours = (diff_seconds / 3600) | round(0, 'common') | int %}
+                                            {% if diff_hours >= 24 %}
+                                                {{ (diff_hours / 24) | int }} Gün ({{ diff_hours }} Saat)
+                                            {% else %}
+                                                {{ diff_hours }} Saat
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-rose-600 font-bold">Perma</span>
+                                        {% endif %}
+                                    </td>
+                                    <!-- Bitiş Süresi -->
+                                    <td class="py-3.5 px-4 font-mono">
+                                        {% if b.expires_at %}
+                                            <span class="{% if is_expired %}text-slate-400 line-through{% else %}text-amber-600 font-semibold{% endif %}">
+                                                {{ b.expires_at.strftime('%d.%m.%Y %H:%M') }}
+                                            </span>
+                                        {% else %}
+                                            <span class="bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold">Sınırsız</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3.5 px-4 text-right">
+                                        <form action="{{ url_for('remove_ban', ban_id=b.id) }}" method="POST" class="inline">
+                                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                            <button type="submit" onclick="return confirm('Bu ban kaydını silmek/kaldırmak istediğinize emin misiniz?');" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 font-medium px-3 py-1.5 rounded-lg border border-rose-200 transition-all">
+                                                {% if is_expired %} Kaydı Temizle {% else %} Banı Kaldır {% endif %}
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center py-12 text-slate-400 text-xs">
+                    Sistemde kayıtlı herhangi bir ban bulunmuyor.
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</body>
+</html>

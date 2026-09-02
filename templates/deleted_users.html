@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silinen Hesaplar Arşivi</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+        
+        <!-- ÜST BAŞLIK -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">Silinen Hesaplar Arşivi (Çöp Kutusu)</h1>
+                <p class="text-xs text-slate-500 mt-1">Sistemden silinen hesapları buradan inceleyebilir ve istediklerinizi geri yükleyebilirsiniz.</p>
+            </div>
+            <a href="{{ url_for('admin_users') }}" class="inline-flex items-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-sm font-semibold rounded-2xl border border-slate-200 transition-all">
+                &larr; Kullanıcı Yönetimine Dön
+            </a>
+        </div>
+
+        <!-- FLASH MESAJLARI -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-3">
+              {% for category, message in messages %}
+                <div class="p-4 rounded-2xl text-sm font-medium border shadow-sm {% if category == 'error' %}bg-rose-50 text-rose-700 border-rose-200{% else %}bg-emerald-50 text-emerald-700 border-emerald-200{% endif %}">
+                    {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- TABLO KARTI -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50/60 text-slate-400 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200/80">
+                            <th class="py-4 px-6">Kullanıcı Adı</th>
+                            <th class="py-4 px-6">E-posta</th>
+                            <th class="py-4 px-6 text-center">Puan</th>
+                            <th class="py-4 px-6 text-center">Silinme Tarihi</th>
+                            <th class="py-4 px-6 text-right">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        {% for d_user in deleted_users %}
+                        <tr class="hover:bg-slate-50/50 transition-colors">
+                            <td class="py-4 px-6 font-bold text-slate-900">
+                                {{ d_user.username }}
+                            </td>
+                            <td class="py-4 px-6 text-slate-600">
+                                {{ d_user.email }}
+                            </td>
+                            <td class="py-4 px-6 text-center font-mono text-indigo-600 font-bold">
+                                {{ d_user.points }}
+                            </td>
+                            <td class="py-4 px-6 text-center text-xs text-slate-400 font-mono">
+                                {{ d_user.deleted_at.strftime('%d.%m.%Y %H:%M') }}
+                            </td>
+                            <td class="py-4 px-6 text-right">
+                                <form action="{{ url_for('restore_user', del_id=d_user.id) }}" method="POST" class="inline">
+                                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                    <button type="submit" onclick="return confirm('Bu hesabı yeniden aktif hale getirmek istediğinize emin misiniz?');" 
+                                            class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all">
+                                        ♻️ Hesabı Geri Yükle
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="py-12 text-center text-slate-400 italic text-sm">
+                                Arşivde silinmiş hesap bulunmuyor.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

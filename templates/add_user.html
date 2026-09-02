@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yeni Kullanıcı Ekle</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-2xl mx-auto space-y-8">
+        
+        <!-- BAŞLIK BÖLÜMÜ -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">Yeni Kullanıcı Ekle</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Sisteme yeni bir kullanıcı tanımlayın ve yetkilerini belirleyin.</p>
+            </div>
+            <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-xl border border-slate-200 transition-all">
+                ← Geri Dön
+            </a>
+        </div>
+
+        <!-- FLASH MESAJLARI -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-3">
+              {% for category, message in messages %}
+                <div class="p-4 rounded-xl text-sm font-medium border shadow-sm {% if category == 'error' %}bg-rose-50 text-rose-700 border-rose-200{% else %}bg-emerald-50 text-emerald-700 border-emerald-200{% endif %}">
+                    {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- FORM KARTI -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8">
+            <form action="{{ url_for('add_user') }}" method="POST" class="space-y-6">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                
+                <!-- Temel Bilgiler -->
+                <div class="space-y-4">
+                    <div>
+                        <label for="username" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Kullanıcı Adı</label>
+                        <input type="text" id="username" name="username" required
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    </div>
+
+                    <div>
+                        <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">E-Posta Adresi</label>
+                        <input type="email" id="email" name="email" required
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="points" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Başlangıç Puanı</label>
+                            <input type="number" id="points" name="points" value="0" required
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">Şifre</label>
+                            <input type="password" id="password" name="password" required
+                                   class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROL SEÇİM BÖLÜMÜ -->
+                <div class="bg-slate-50/80 rounded-2xl p-5 border border-slate-100 space-y-3">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">Atanacak Roller (Birden fazla seçilebilir)</label>
+                    {% if assignable_roles %}
+                        <div class="space-y-2">
+                            {% for r in assignable_roles | sort(attribute='priority') %}
+                                <div class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-slate-200/60 shadow-sm">
+                                    <input type="checkbox" id="role_{{ r.id }}" name="role_ids" value="{{ r.id }}"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <label for="role_{{ r.id }}" class="flex items-center justify-between flex-1 cursor-pointer select-none">
+                                        <span class="font-semibold text-sm" style="color: {{ r.color }};">
+                                            {{ r.name }}
+                                        </span>
+                                        <span class="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">Öncelik: {{ r.priority }}</span>
+                                    </label>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-xs text-slate-400 italic">Atanabilecek uygun rol bulunamadı.</p>
+                    {% endif %}
+                </div>
+
+                <!-- BİREYSEL YETKİ VE DELEGASYON KUTULARI -->
+                {% if user.is_admin or user.has_assign_role_permission() %}
+                    <div class="bg-indigo-50/40 rounded-2xl p-5 border border-indigo-100/60 space-y-4">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">Kullanıcı Özel Yetki ve Dağıtım Kutuları</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Bu kutular kullanıcının temel yetkilerini ve bu yetkileri başkalarına verebilme haklarını belirler.</p>
+                        </div>
+
+                        <div class="space-y-3 pt-2">
+                            <!-- 1. Silme Yetkileri -->
+                            <div class="space-y-2">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" name="can_delete_users" value="can_delete_users"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-semibold text-slate-700">Özel Kullanıcı Silme Yetkisi</span>
+                                </label>
+                                {% if user.is_admin or user.can_delegate_delete() %}
+                                <label class="flex items-center space-x-3 cursor-pointer ml-6">
+                                    <input type="checkbox" name="can_grant_delete_permission" value="can_grant_delete_permission"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs text-slate-600">Başkalarına Silme Yetkisi Verebilme</span>
+                                </label>
+                                {% endif %}
+                            </div>
+
+                            <hr class="border-slate-200/60">
+
+                            <!-- 2. Puan Değiştirme Yetkileri -->
+                            <div class="space-y-2">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" name="can_edit_points" value="can_edit_points"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-semibold text-slate-700">Özel Puan Değiştirme Yetkisi</span>
+                                </label>
+                                {% if user.is_admin or user.can_delegate_points() %}
+                                <label class="flex items-center space-x-3 cursor-pointer ml-6">
+                                    <input type="checkbox" name="can_grant_points_permission" value="can_grant_points_permission"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs text-slate-600">Başkalarına Puan Yetkisi Verebilme</span>
+                                </label>
+                                {% endif %}
+                            </div>
+
+                            <hr class="border-slate-200/60">
+
+                            <!-- 3. Rol Atama Yetkileri -->
+                            <div class="space-y-2">
+                                <label class="flex items-center space-x-3 cursor-pointer">
+                                    <input type="checkbox" name="can_assign_roles" value="can_assign_roles"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-sm font-semibold text-slate-700">Özel Rol Atama / Verme Yetkisi</span>
+                                </label>
+                                {% if user.is_admin or user.can_delegate_role() %}
+                                <label class="flex items-center space-x-3 cursor-pointer ml-6">
+                                    <input type="checkbox" name="can_grant_role_permission" value="can_grant_role_permission"
+                                           class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+                                    <span class="text-xs text-slate-600">Başkalarına Rol Verme Yetkisi Verebilme</span>
+                                </label>
+                                {% endif %}
+                            </div>
+
+                            <!-- Admin Kutusu -->
+                            {% if user.is_admin %}
+                                <hr class="border-slate-200/60">
+                                <label class="flex items-center space-x-3 cursor-pointer pt-1">
+                                    <input type="checkbox" name="is_admin" value="is_admin"
+                                           class="w-4 h-4 text-rose-600 rounded border-slate-300 focus:ring-rose-500">
+                                    <span class="text-sm font-bold text-rose-600">Sistem Yöneticisi (Admin) Yap</span>
+                                </label>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Form Butonları -->
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <a href="{{ url_for('index') }}" class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-xl transition-all">
+                        İptal
+                    </a>
+                    <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-500/20 transition-all">
+                        Kullanıcıyı Oluştur
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Şikayet Yönetim Paneli</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+
+    <div class="max-w-6xl mx-auto space-y-8">
+        
+        <!-- ÜST BAŞLIK VE GERİ DÖN -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/85 p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-slate-900">Şikayet Yönetim Paneli</h1>
+                <p class="text-xs text-slate-500 mt-0.5">Kullanıcı bildirimlerini ve şikayet edilen gönderileri buradan denetleyebilirsiniz.</p>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                {% if user.is_admin %}
+                    <a href="{{ url_for('admin_deleted_posts') }}" class="inline-flex items-center px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-semibold rounded-2xl border border-indigo-200 transition-all shadow-sm">
+                        🗑️ Silinenler Arşivi
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2.5 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-sm font-semibold rounded-2xl border border-slate-200 transition-all">
+                    &larr; Ana Sayfaya Dön
+                </a>
+            </div>
+        </div>
+
+        <!-- 1. ŞİKAYET EDİLEN KULLANICILAR TABLOSU (Sadece Admin Görür) -->
+        {% if user.is_admin %}
+        <form action="{{ url_for('bulk_resolve_user_reports') if bulk_resolve_user_reports is defined else '#' }}" method="POST">
+            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+            <div class="bg-white rounded-3xl shadow-sm border border-slate-200/85 overflow-hidden p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Şikayet Edilen Kullanıcılar ({{ reports | length if reports is defined else 0 }})</h2>
+                    {% if reports %}
+                        <button type="submit" onclick="return confirm('Seçili kullanıcı şikayetlerini toplu olarak kaldırmak istediğinize emin misiniz?');" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold rounded-xl text-xs transition-all">
+                            🗑️ Seçilenleri Toplu Kaldır
+                        </button>
+                    {% endif %}
+                </div>
+
+                <div class="overflow-x-auto">
+                    {% if reports %}
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    <th class="pb-3 px-2 w-8"><input type="checkbox" id="selectAllUsers" onclick="toggleAllCheckboxes(this, 'user_report_ids')"></th>
+                                    <th class="pb-3 px-3">Şikayet Eden</th>
+                                    <th class="pb-3 px-3">Şikayet Edilen</th>
+                                    <th class="pb-3 px-3">Şikayet Sebebi / Detay</th>
+                                    <th class="pb-3 px-3">Tarih</th>
+                                    <th class="pb-3 px-3 text-right">İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-xs">
+                                {% for report in reports %}
+                                    <tr class="hover:bg-slate-50/60 transition-colors">
+                                        <td class="py-4 px-2"><input type="checkbox" name="user_report_ids" value="{{ report.id }}" class="user_report_ids"></td>
+                                        <td class="py-4 px-3 font-semibold text-slate-700">
+                                            {% if report.reporter %}
+                                                <a href="{{ url_for('user_profile', user_id=report.reporter.id) }}" class="text-indigo-600 hover:underline">
+                                                    {{ report.reporter.username }}
+                                                </a>
+                                            {% else %}
+                                                Bilinmeyen
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-3 font-bold text-rose-600">
+                                            {% if report.reported %}
+                                                <a href="{{ url_for('user_profile', user_id=report.reported.id) }}" class="hover:underline">
+                                                    {{ report.reported.username }}
+                                                </a>
+                                            {% else %}
+                                                Bilinmeyen
+                                            {% endif %}
+                                        </td>
+                                        <td class="py-4 px-3 text-slate-600 max-w-xs break-words">
+                                            {{ report.reason }}
+                                        </td>
+                                        <td class="py-4 px-3 text-slate-400 font-mono text-[11px]">
+                                            {{ report.created_at.strftime('%d.%m.%Y %H:%M') if report.created_at else '-' }}
+                                        </td>
+                                        <td class="py-4 px-3 text-right">
+                                            <form action="{{ url_for('delete_report', report_id=report.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu şikayeti çözüldü olarak kapatmak/silmek istediğinize emin misiniz?');">
+                                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                                <button type="submit" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold rounded-xl transition-all">
+                                                    Kaldır / Çözüldü
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <div class="py-8 text-center text-slate-400 text-xs italic">
+                            Şu anda listede bekleyen kullanıcı şikayeti bulunmuyor.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+        {% endif %}
+
+        <!-- 2. ŞİKAYET EDİLEN GÖNDERİLER TABLOSU (Admin ve Cevap Silme Yetkisi Olanlar Görür) -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/85 overflow-hidden p-6 space-y-4">
+            <form action="{{ url_for('bulk_delete_posts') if bulk_delete_posts is defined else '#' }}" method="POST">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-500">Şikayet Edilen Gönderiler ({{ post_reports | length if post_reports is defined else 0 }})</h2>
+                    {% if post_reports and user.is_admin %}
+                        <div class="space-x-2">
+                            <button type="submit" onclick="return confirm('Seçili gönderileri tamamen silmek istediğinize emin misiniz?');" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold rounded-xl text-xs transition-all">
+                                🗑️ Seçilenleri Toplu Sil
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </form>
+
+            <div class="overflow-x-auto">
+                {% if post_reports %}
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                {% if user.is_admin %}
+                                    <th class="pb-3 px-2 w-8"><input type="checkbox" id="selectAllPosts" onclick="toggleAllCheckboxes(this, 'post_report_ids')"></th>
+                                {% endif %}
+                                <th class="pb-3 px-3">Şikayet Eden</th>
+                                <th class="pb-3 px-3">Gönderi Sahibi</th>
+                                <th class="pb-3 px-3">Gönderi İçeriği</th>
+                                <th class="pb-3 px-3">Şikayet Sebebi</th>
+                                <th class="pb-3 px-3 text-right">İşlemler</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-xs">
+                            {% for rep in post_reports %}
+                                <tr class="hover:bg-slate-50/60 transition-colors">
+                                    {% if user.is_admin %}
+                                        <td class="py-4 px-2"><input type="checkbox" name="post_report_ids" value="{{ rep.id }}" class="post_report_ids"></td>
+                                    {% endif %}
+                                    <td class="py-4 px-3 font-semibold text-slate-700">
+                                        {% if rep.reporter %}
+                                            <a href="{{ url_for('user_profile', user_id=rep.reporter.id) }}" class="text-indigo-600 hover:underline">
+                                                {{ rep.reporter.username }}
+                                            </a>
+                                        {% else %}
+                                            Bilinmeyen
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-3 font-bold text-indigo-600">
+                                        {% if rep.post and rep.post.author %}
+                                            <a href="{{ url_for('user_profile', user_id=rep.post.author.id) }}" class="hover:underline">
+                                                {{ rep.post.author.username }}
+                                            </a>
+                                        {% else %}
+                                            Silinmiş Gönderi
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-3 text-slate-600 max-w-xs break-words">
+                                        {% if rep.post %}
+                                            <a href="{{ url_for('view_single_post', post_id=rep.post.id) }}" class="hover:text-indigo-600 hover:underline block font-medium" title="Gönderiye Git">
+                                                {{ rep.post.content }} <span class="text-[10px] text-indigo-500 font-bold block mt-0.5">🔗 Gönderiye Git &rarr;</span>
+                                            </a>
+                                        {% else %}
+                                            <span class="text-slate-400 italic">Silinmiş Gönderi</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-4 px-3 text-rose-600 font-medium">
+                                        {{ rep.reason }}
+                                    </td>
+                                    <td class="py-4 px-3 text-right space-x-1 whitespace-nowrap">
+                                        <!-- Şikayeti Kaldır (Onay Pop-up'ı Eklendi) -->
+                                        <form action="{{ url_for('resolve_post_report', report_id=rep.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu şikayeti kaldırmak istediğinize emin misiniz?');">
+                                            {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                            <button type="submit" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-all">
+                                                Şikayeti Kaldır
+                                            </button>
+                                        </form>
+                                        <!-- Gönderiyi Sil (Tıklandığında Sebep Soran Modalı Açar) -->
+                                        {% if rep.post %}
+                                            <button type="button" onclick="openAdminDeleteModal({{ rep.post.id }})" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold rounded-xl transition-all">
+                                                Gönderiyi Sil
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <div class="py-8 text-center text-slate-400 text-xs italic">
+                        Şu anda listede bekleyen gönderi şikayeti bulunmuyor.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- GÖNDERİ SİLME SEBEBİ MODALI -->
+    <div id="adminDeleteReasonModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Şikayet Edilen Gönderiyi Sil</h3>
+            <p class="text-xs text-slate-500">Lütfen bu gönderiyi silme sebebinizi belirtin (çöp kutusuna taşınacaktır):</p>
+            <form id="adminDeleteReasonForm" method="POST" class="space-y-3">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <textarea name="delete_reason" rows="3" placeholder="Örn: Kurallara aykırı içerik vb." required class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-rose-500 resize-none"></textarea>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeAdminDeleteModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">İptal</button>
+                    <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-md">Silmeyi Onayla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scriptler -->
+    <script>
+    function toggleAllCheckboxes(source, className) {
+        const checkboxes = document.querySelectorAll('.' + className);
+        checkboxes.forEach(cb => cb.checked = source.checked);
+    }
+
+    function openAdminDeleteModal(postId) {
+        const modal = document.getElementById('adminDeleteReasonModal');
+        const form = document.getElementById('adminDeleteReasonForm');
+        form.action = `/admin/delete_reported_post/${postId}`;
+        modal.classList.remove('hidden');
+    }
+
+    function closeAdminDeleteModal() {
+        document.getElementById('adminDeleteReasonModal').classList.add('hidden');
+    }
+    </script>
+
+</body>
+</html>

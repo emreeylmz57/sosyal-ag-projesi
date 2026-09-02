@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kullanıcı Paneli</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8 relative">
+
+    <!-- SAĞ ÜST KÖŞE MODERN TOAST POP-UP BİLDİRİMLERİ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col space-y-3 max-w-sm w-full px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="toast-item pointer-events-auto animate-slide-down flex items-center p-4 rounded-2xl text-xs sm:text-sm font-medium shadow-xl border backdrop-blur-md transition-all duration-500
+                        {% if category == 'error' %}
+                            bg-rose-900/90 text-white border-rose-700 shadow-rose-900/20
+                        {% else %}
+                            bg-slate-900/90 text-white border-slate-800 shadow-slate-900/20
+                        {% endif %}">
+                <div class="shrink-0 mr-3">
+                    {% if category == 'error' %}
+                        <div class="w-7 h-7 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </div>
+                    {% else %}
+                        <div class="w-7 h-7 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="flex-1 tracking-tight leading-relaxed">{{ message }}</div>
+                <button onclick="removeToast(this.closest('.toast-item'))" class="shrink-0 ml-3 text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="max-w-5xl mx-auto space-y-8">
+        
+        <!-- ÜST KULLANICI / PROFİL KARTI -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 sm:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            
+            <div class="flex items-start sm:items-center space-x-4 min-w-0">
+                <div class="shrink-0">
+                    {% if user.profile_pic and user.profile_pic != 'None' and user.profile_pic != '' and user.profile_pic != 'default.png' %}
+                        <img src="{{ url_for('static', filename='profile_pics/' + user.profile_pic) }}?v={{ range(1, 99999) | random }}" 
+                             alt="{{ user.username }}"
+                             onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-bold border-2 border-indigo-100 shadow-sm\'>{{ user.username[0] | upper }}</div>';"
+                             class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-indigo-100">
+                    {% else %}
+                        <div class="w-16 h-16 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl font-bold shadow-sm border-2 border-indigo-100">
+                            {{ user.username[0] | upper }}
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div class="space-y-1.5 min-w-0">
+                    <div class="relative inline-block text-left">
+                        <button onclick="toggleDropdown(event)" class="flex items-center space-x-2 text-2xl font-bold tracking-tight text-slate-900 hover:text-indigo-600 transition-colors focus:outline-none group">
+                            <span class="truncate max-w-[200px] sm:max-w-xs">{{ user.username }}</span>
+                            <svg class="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+
+                        <div id="userDropdown" class="hidden absolute left-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 transition-all space-y-0.5">
+                            <a href="{{ url_for('user_profile', user_id=user.id) }}" class="flex items-center px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">👤 Profilimi Görüntüle</a>
+                            <a href="{{ url_for('edit_profile') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">✏️ Profilimi Düzenle</a>
+                            <a href="{{ url_for('change_password') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">🔑 Şifremi Değiştir</a>
+                            {% if user.is_admin or user.has_assign_role_permission() %}
+                                <div class="border-t border-slate-100 my-1"></div>
+                                <div class="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Yönetim Panelleri</div>
+                            {% endif %}
+                            {% if user.is_admin %}
+                                <a href="{{ url_for('admin_users') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 transition-colors">👥 Kullanıcı Yönetim Paneli</a>
+                            {% endif %}
+                            {% if user.is_admin or user.has_assign_role_permission() %}
+                                <a href="{{ url_for('manage_roles') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors">⚙️ Rol Yönetim Paneli</a>
+                            {% endif %}
+                            {% if user.is_admin %}
+                                <a href="{{ url_for('view_logs') }}" class="flex items-center px-4 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 transition-colors">📊 Sistem Logları</a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if user.is_admin %}
+                        <div>
+                            <span class="inline-block px-2.5 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-bold rounded-md">Sistem Yöneticisi / Admin</span>
+                        </div>
+                    {% endif %}
+
+                    <div class="flex items-center space-x-2 text-xs font-medium text-slate-500 pt-0.5">
+                        <span>Mevcut Puanın:</span>
+                        <span class="font-bold font-mono text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-md border border-indigo-100/60">{{ user.points }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sağ Üst Butonlar -->
+            <div class="flex items-center gap-3 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+                
+                <!-- MOD PANELİ BUTONU -->
+                {% if user.is_admin or user.can_delete_comments %}
+                <div class="relative">
+                    <button onclick="toggleModDrawer(event)" title="Moderatör Paneli" 
+                            class="relative px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-semibold text-xs rounded-xl border border-indigo-200 transition-all flex items-center justify-center shrink-0 shadow-sm gap-1.5">
+                        <span>🛡️ Mod Paneli</span>
+                        {% if pending_reports_count and pending_reports_count > 0 %}
+                            <span class="absolute -top-1.5 -right-1.5 px-2 py-0.5 bg-rose-600 text-white font-bold text-[10px] rounded-full shadow-md animate-pulse">
+                                {{ pending_reports_count }}
+                            </span>
+                        {% endif %}
+                    </button>
+                </div>
+                {% endif %}
+
+                <!-- BİLDİRİM MERKEZİ -->
+                <div class="relative">
+                    <button onclick="toggleNotificationsModal(event)" title="Bildirimler" 
+                            class="relative p-2.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl border border-slate-200 hover:border-indigo-200 transition-all flex items-center justify-center shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                        {% if total_unread_notifs and total_unread_notifs > 0 %}
+                            <span id="notifBadge" class="absolute -top-1.5 -right-1.5 px-2 py-0.5 bg-rose-600 text-white font-bold text-[10px] rounded-full shadow-md animate-pulse">{{ total_unread_notifs }}</span>
+                        {% endif %}
+                    </button>
+                    <div id="notificationsModal" class="hidden absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 space-y-3">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">🔔 Bildirimler</h3>
+                            <button onclick="document.getElementById('notificationsModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+                        </div>
+                        <div id="notificationsContainer" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                            <div class="text-[11px] text-slate-400 text-center py-2">Yükleniyor...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ARKADAŞLAR VE İSTEKLER -->
+                <div class="relative">
+                    <button onclick="toggleFriendsModal(event)" title="Arkadaşlarım ve İstekler" 
+                            class="relative p-2.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl border border-slate-200 hover:border-indigo-200 transition-all flex items-center justify-center shrink-0 shadow-sm">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                        {% if incoming_requests_count and incoming_requests_count > 0 %}
+                            <span class="absolute -top-1.5 -right-1.5 px-2 py-0.5 bg-indigo-600 text-white font-bold text-[10px] rounded-full shadow-md animate-pulse">{{ incoming_requests_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div id="friendsModal" class="hidden absolute right-0 mt-2 w-80 sm:w-88 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 space-y-4">
+                        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Arkadaşlar & İstekler</h3>
+                            <button onclick="document.getElementById('friendsModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="userSearchInput" onkeyup="searchUsers(event)" placeholder="Kullanıcı adı ara..." autocomplete="off" class="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 text-xs rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all">
+                            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <div id="searchResults" class="hidden absolute left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-100 py-1.5 z-50 max-h-48 overflow-y-auto"></div>
+                        </div>
+                        <div class="space-y-2">
+                            <h4 class="text-[11px] font-bold text-indigo-600 uppercase tracking-wide">Gelen İstekler</h4>
+                            <div id="incomingRequestsContainer" class="space-y-2 max-h-32 overflow-y-auto"><div class="text-[11px] text-slate-400 text-center py-1">Yükleniyor...</div></div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t border-slate-100">
+                            <h4 class="text-[11px] font-bold text-amber-600 uppercase tracking-wide">Giden İstekler</h4>
+                            <div id="outgoingRequestsContainer" class="space-y-2 max-h-32 overflow-y-auto"><div class="text-[11px] text-slate-400 text-center py-1">Giden istek yok</div></div>
+                        </div>
+                        <div class="space-y-2 pt-2 border-t border-slate-100">
+                            <h4 class="text-[11px] font-bold text-emerald-600 uppercase tracking-wide">Arkadaşlarım</h4>
+                            <div id="friendsListContainer" class="space-y-2 max-h-36 overflow-y-auto"><div class="text-[11px] text-slate-400 text-center py-1">Yükleniyor...</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MESAJLAŞMA -->
+                <a href="{{ url_for('messages') }}" title="Mesajlar" class="relative p-2.5 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl border border-slate-200 transition-all flex items-center justify-center shrink-0 shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    {% if total_unread and total_unread > 0 %}
+                        <span class="absolute -top-1.5 -right-1.5 px-2 py-0.5 bg-rose-600 text-white font-bold text-[10px] rounded-full shadow-md animate-pulse">{{ total_unread }}</span>
+                    {% endif %}
+                </a>
+
+                <!-- ÇIKIŞ YAP -->
+                <a href="{{ url_for('logout') }}" class="inline-flex items-center justify-center px-4 py-2 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 text-xs font-semibold rounded-xl border border-slate-200 transition-all shadow-sm">Çıkış Yap</a>
+            </div>
+        </div>
+
+        <!-- GÖNDERİ PAYLAŞIM ALANI -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">✍️ Ne düşünüyorsun?</h3>
+            <form action="{{ url_for('create_post') }}" method="POST" enctype="multipart/form-data" class="space-y-3">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                
+                <textarea name="content" rows="3" placeholder="Düşüncelerini toplulukla veya sadece arkadaşlarınla paylaş..." class="w-full p-4 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"></textarea>
+                
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                    <div class="flex items-center space-x-3 w-full sm:w-auto flex-wrap gap-2">
+                        <div class="flex items-center space-x-2">
+                            <label class="text-xs font-semibold text-slate-600">Kimler Görebilir?</label>
+                            <select name="visibility" class="text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none font-medium text-slate-700">
+                                <option value="public">🌐 Herkes (Genel)</option>
+                                <option value="friends">🔒 Sadece Arkadaşlar</option>
+                            </select>
+                        </div>
+
+                        <!-- Dosya / Resim Ekleme Butonu -->
+                        <label class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-semibold border border-slate-200 transition-all cursor-pointer shadow-xs">
+                            📎 <span id="postFileName">Dosya/Resim Ekle</span>
+                            <input type="file" name="post_file" accept="image/*,.pdf,.doc,.docx" class="hidden" onchange="document.getElementById('postFileName').textContent = this.files[0] ? this.files[0].name : 'Dosya/Resim Ekle'">
+                        </label>
+                    </div>
+
+                    <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md transition-all">Gönderiyi Paylaş</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- SOSYAL AKIŞ -->
+        <div class="space-y-6">
+            <h3 class="text-sm font-bold text-slate-800 tracking-tight flex items-center gap-2 px-1">📌 Sosyal Akış ve Gönderiler</h3>
+            {% if posts %}
+                {% for post in posts %}
+                
+                <!-- GÖNDERİ KARTI -->
+                <div id="post-{{ post.id }}" class="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 space-y-4">
+                    
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            {% if post.author.profile_pic and post.author.profile_pic != 'None' and post.author.profile_pic != '' and post.author.profile_pic != 'default.png' %}
+                                <img src="{{ url_for('static', filename='profile_pics/' + post.author.profile_pic) }}" 
+                                     alt="{{ post.author.username }}"
+                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold border border-indigo-100\'>{{ post.author.username[0] | upper }}</div>';"
+                                     class="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-sm">
+                            {% else %}
+                                <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold border border-indigo-100">{{ post.author.username[0] | upper }}</div>
+                            {% endif %}
+                            <div>
+                                <a href="{{ url_for('user_profile', user_id=post.author.id) }}" class="text-xs font-bold text-slate-800 hover:text-indigo-600 transition-colors">{{ post.author.username }}</a>
+                                <p class="text-[10px] text-slate-400">
+                                    {{ post.created_at.strftime('%d.%m.%Y %H:%M') }} • 
+                                    <span class="font-semibold {% if post.visibility == 'public' %}text-indigo-600{% else %}text-amber-600{% endif %}">
+                                        {% if post.visibility == 'public' %}🌐 Genel{% else %}🔒 Sadece Arkadaşlar{% endif %}
+                                    </span>
+                                    {% if post.is_edited %}
+                                        <span class="text-slate-400 italic ml-1">(düzenlendi)</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- SAĞ ÜST İŞLEMLER (DÜZENLE VE SİL) -->
+                        <div class="flex items-center gap-2">
+                            {% if user.id == post.user_id %}
+                                <button type="button" onclick="openEditPostModal({{ post.id }}, `{{ post.content | replace('`', '\\`') }}`)" class="p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs transition-all font-semibold flex items-center gap-1" title="Gönderiyi Düzenle">
+                                    ✏️ <span class="hidden sm:inline">Düzenle</span>
+                                </button>
+                            {% endif %}
+                            
+                            {% if user.id == post.user_id or user.is_admin or user.can_delete_comments %}
+                                <button type="button" onclick="openDeleteReasonModal({{ post.id }})" class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs transition-all font-semibold flex items-center gap-1" title="Gönderiyi Sil">
+                                    ✕ <span class="hidden sm:inline">Sil</span>
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- GÖNDERİ METNİ -->
+                    {% if post.content %}
+                        <a href="{{ url_for('view_single_post', post_id=post.id) }}" class="block text-xs sm:text-sm text-slate-700 whitespace-pre-line leading-relaxed pl-1 hover:text-indigo-600 transition-colors">
+                            {{ post.content }}
+                        </a>
+                    {% endif %}
+
+                    <!-- GÖNDERİ DOSYA / RESİM GÖSTERİMİ -->
+                    {% if post.image_file %}
+                        <div class="mt-3 rounded-xl overflow-hidden border border-slate-200 max-h-96 bg-slate-50 flex items-center justify-center">
+                            {% if post.image_file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')) %}
+                                <img src="{{ url_for('static', filename='post_uploads/' + post.image_file) }}" alt="Gönderi Görseli" class="w-full h-full object-contain max-h-96">
+                            {% else %}
+                                <a href="{{ url_for('static', filename='post_uploads/' + post.image_file) }}" target="_blank" class="p-4 text-xs font-semibold text-indigo-600 hover:underline flex items-center gap-2">
+                                    📄 Dosyayı İndir / Görüntüle: {{ post.image_file }}
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                        <div class="flex items-center space-x-3">
+                            {% set liked_by_user = post.likes | selectattr('user_id', 'equalto', user.id) | list | length > 0 %}
+                            <button onclick="toggleLike({{ post.id }}, this)" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border transition-all {% if liked_by_user %}bg-rose-50 border-rose-200 text-rose-600 font-bold{% else %}bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">
+                                <span id="like-text-{{ post.id }}">{% if liked_by_user %}❤️ Beğenildi{% else %}🤍 Beğen{% endif %}</span>
+                                <span id="like-count-{{ post.id }}" class="font-mono">({{ post.likes | length }})</span>
+                            </button>
+                            <form action="{{ url_for('repost_post', post_id=post.id) }}" method="POST" class="inline">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <button type="submit" onclick="return confirm('Bu gönderiyi akışınızda paylaşmak istiyor musunuz?');" class="flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-all font-medium"><span>🔄 Paylaş</span></button>
+                            </form>
+                        </div>
+
+                        {% set total_reports = post.reports | length %}
+                        {% if user.id == post.user_id %}
+                            {% if total_reports > 0 %}
+                                <div class="px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-default">🚩 Şikayet Aldı <span class="bg-rose-200/60 px-1.5 py-0.5 rounded-md font-mono text-[10px]">({{ total_reports }})</span></div>
+                            {% endif %}
+                        {% else %}
+                            {% set reported_by_user = post.reports | selectattr('reporter_id', 'equalto', user.id) | list | length > 0 %}
+                            {% if reported_by_user %}
+                                <div class="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl text-xs font-semibold flex items-center gap-1 cursor-default">🚩 Şikayet Edildi <span class="bg-amber-200/60 px-1.5 py-0.5 rounded-md font-mono text-[10px]">({{ total_reports }})</span></div>
+                            {% else %}
+                                <button onclick="openReportModal({{ post.id }})" class="px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded-xl text-xs transition-all font-semibold flex items-center gap-1.5 border border-slate-200 hover:border-rose-200">🚩 <span>Şikayet Et</span> <span class="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-md font-mono text-[10px]">({{ total_reports }})</span></button>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-100 p-12 text-center space-y-2">
+                    <p class="text-sm font-semibold text-slate-500">Henüz akışta görüntülenecek bir gönderi yok.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 🛡️ SAĞDAN AÇILAN MOD PANELİ ÇEKMECESİ -->
+    {% if user.is_admin or user.can_delete_comments %}
+    <div id="modDrawerOverlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 hidden transition-opacity duration-300" onclick="closeModDrawer()"></div>
+    
+    <div id="modDrawer" class="fixed top-0 right-0 h-full w-full sm:w-[520px] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-slate-200">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">🛡️</span>
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">Moderatör Yönetim Paneli</h2>
+            </div>
+            <button onclick="closeModDrawer()" class="text-slate-400 hover:text-slate-600 text-sm font-bold p-2 rounded-xl hover:bg-slate-100 transition-colors">✕</button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-8">
+            <!-- 1. ŞİKAYET EDİLEN KULLANICILAR (Sadece Admin Görür) -->
+            {% if user.is_admin %}
+            <div class="space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">👤 Şikayet Edilen Kullanıcılar</h3>
+                    <div class="flex items-center space-x-2">
+                        <a href="{{ url_for('admin_reports') }}" onclick="closeModDrawer()" class="text-[11px] font-semibold text-indigo-600 hover:underline">Tam Sayfa &rarr;</a>
+                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-bold text-[10px]">{{ reports | length if reports is defined else 0 }}</span>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    {% if reports %}
+                        {% for report in reports %}
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                            <div class="flex items-center justify-between text-[11px] text-slate-500">
+                                <span>Şikayet Eden: <strong class="text-slate-700">{{ report.reporter.username if report.reporter else 'Bilinmeyen' }}</strong></span>
+                                <span class="text-rose-600 font-bold">Şikayet Edilen: {{ report.reported.username if report.reported else 'Bilinmeyen' }}</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-100">
+                                <p class="text-slate-700"><strong>Sebep:</strong> {{ report.reason }}</p>
+                            </div>
+                            <div class="flex items-center justify-end pt-1">
+                                <form action="{{ url_for('delete_report', report_id=report.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu şikayeti kaldırmak istediğinize emin misiniz?');">
+                                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                    <button type="submit" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-semibold rounded-xl text-[11px] transition-all">Kaldır / Çözüldü</button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="bg-slate-50 p-4 rounded-2xl text-center text-slate-400 text-xs italic border border-slate-200/80">Bekleyen kullanıcı şikayeti bulunmuyor.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 2. ŞİKAYET EDİLEN GÖNDERİLER (Admin ve Cevap Silme Yetkisi Olanlar Görür) -->
+            <div class="space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-rose-600 flex items-center gap-1.5">🚨 Şikayet Edilen Gönderiler</h3>
+                    <div class="flex items-center space-x-2">
+                        <a href="{{ url_for('admin_reports') }}" onclick="closeModDrawer()" class="text-[11px] font-semibold text-indigo-600 hover:underline">Tam Sayfa &rarr;</a>
+                        <span class="px-2 py-0.5 bg-rose-50 text-rose-600 rounded-full font-bold text-[10px]">{{ post_reports | length if post_reports is defined else 0 }}</span>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    {% if post_reports %}
+                        {% for rep in post_reports %}
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+                            <div class="flex items-center justify-between text-[11px] text-slate-500">
+                                <span>Şikayet Eden: <strong class="text-slate-700">{{ rep.reporter.username if rep.reporter else 'Bilinmeyen' }}</strong></span>
+                                <span class="text-rose-600 font-semibold">Sebep: {{ rep.reason }}</span>
+                            </div>
+                            <div class="bg-white p-3 rounded-xl border border-slate-100 space-y-1">
+                                <p class="text-[11px] font-bold text-indigo-600">Gönderi Sahibi: @{{ rep.post.author.username if rep.post and rep.post.author else 'Silinmiş' }}</p>
+                                <p class="text-slate-700 line-clamp-2">{{ rep.post.content if rep.post else 'İçerik silinmiş' }}</p>
+                                {% if rep.post %}
+                                    <a href="/post/{{ rep.post.id }}?open_mod=true" onclick="closeModDrawer()" class="text-[10px] text-indigo-500 font-bold hover:underline inline-block mt-1">🔗 Gönderiye Git &rarr;</a>
+                                {% endif %}
+                            </div>
+                            <div class="flex items-center justify-end space-x-2 pt-1">
+                                <form action="{{ url_for('resolve_post_report', report_id=rep.id) }}" method="POST" class="inline" onsubmit="return confirm('Bu şikayeti kaldırmak istediğinize emin misiniz?');">
+                                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                    <button type="submit" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded-xl text-[11px] transition-all">Şikayeti Kaldır</button>
+                                </form>
+                                {% if rep.post %}
+                                    <!-- GÜNCELLENDİ: Doğrudan sebep soran modalı açacak şekilde ayarlandı -->
+                                    <button type="button" onclick="openDeleteReasonModal({{ rep.post.id }})" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-[11px] transition-all shadow-sm">Gönderiyi Sil</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="bg-slate-50 p-4 rounded-2xl text-center text-slate-400 text-xs italic border border-slate-200/80">Bekleyen gönderi şikayeti bulunmuyor.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 3. SİSTEM BAN KAYITLARI (Sadece Admin Görür) -->
+            {% if user.is_admin %}
+            <div class="space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-amber-600 flex items-center gap-1.5">🚫 Sistem Ban Kayıtları</h3>
+                    <a href="{{ url_for('admin_bans') if url_for('admin_bans') is defined else '#' }}" onclick="closeModDrawer()" class="text-[11px] font-semibold text-indigo-600 hover:underline">Tam Sayfa &rarr;</a>
+                </div>
+                <div class="space-y-2">
+                    {% if ban_logs %}
+                        {% for ban in ban_logs %}
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs flex items-center justify-between">
+                            <div>
+                                <p class="font-bold text-slate-700">{{ ban.banned_user.username if ban.banned_user else 'Kullanıcı' }}</p>
+                                <p class="text-[10px] text-slate-400">Sebep: {{ ban.reason }}</p>
+                            </div>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">Banlı</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="bg-slate-50 p-4 rounded-2xl text-center text-slate-400 text-xs italic border border-slate-200/80">Aktif ban kaydı bulunmuyor.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- GÖNDERİ DÜZENLEME MODALI -->
+    <div id="editPostModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-lg w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Gönderiyi Düzenle</h3>
+            <form id="editPostForm" method="POST" class="space-y-3">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <textarea name="content" id="editPostContent" rows="4" required class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-500 resize-none"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeEditPostModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">İptal</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-md">Değişiklikleri Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- GÖNDERİ SİLME SEBEBİ MODALI -->
+    <div id="deleteReasonModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Gönderiyi Sil</h3>
+            <p class="text-xs text-slate-500">Lütfen bu gönderiyi silme sebebinizi belirtin:</p>
+            <form id="deleteReasonForm" method="POST" class="space-y-3" onsubmit="saveScrollPosition()">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <textarea name="delete_reason" rows="3" placeholder="Örn: Uygunsuz içerik, kurallara aykırı vb." required class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-rose-500 resize-none"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeDeleteReasonModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">İptal</button>
+                    <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-md">Silmeyi Onayla</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- BİLDİRİM DETAY MODALI -->
+    <div id="deletedPostDetailModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl border border-slate-100 animate-slide-down">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2 text-rose-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-900">Arşivlenen Gönderi Detayı</h3>
+                </div>
+                <button onclick="document.getElementById('deletedPostDetailModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xs font-bold p-1 rounded-lg hover:bg-slate-100 transition-colors">✕</button>
+            </div>
+            <div id="deletedPostDetailContent" class="text-xs text-slate-700 space-y-2 bg-slate-50/80 p-4 rounded-xl border border-slate-200/60 leading-relaxed font-medium"></div>
+            <div class="flex justify-end pt-1">
+                <button type="button" onclick="document.getElementById('deletedPostDetailModal').classList.add('hidden')" class="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-md transition-all">Kapat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ŞİKAYET ET MODALI -->
+    <div id="reportModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">Gönderiyi Şikayet Et</h3>
+            <form id="reportForm" method="POST" class="space-y-3">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                <textarea name="reason" rows="3" placeholder="Bu gönderiyi neden şikayet ediyorsunuz?" required class="w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-rose-500 resize-none"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button type="button" onclick="closeReportModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">İptal</button>
+                    <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl shadow-md">Şikayeti Gönder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+    const currentUserId = {{ session.get('user_id', 0) }};
+
+    function saveScrollPosition() {
+        localStorage.setItem('scrollPosition', window.scrollY);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('open_mod') === 'true') {
+            setTimeout(() => {
+                const drawer = document.getElementById('modDrawer');
+                const overlay = document.getElementById('modDrawerOverlay');
+                if (drawer && overlay) {
+                    drawer.classList.remove('translate-x-full');
+                    overlay.classList.remove('hidden');
+                }
+            }, 100);
+        }
+
+        const scrollPos = localStorage.getItem('scrollPosition');
+        if (scrollPos !== null) {
+            window.scrollTo(0, parseInt(scrollPos));
+            localStorage.removeItem('scrollPosition');
+        }
+        document.querySelectorAll('.toast-item').forEach(toast => {
+            setTimeout(() => { removeToast(toast); }, 2000);
+        });
+    });
+
+    function openEditPostModal(postId, content) {
+        document.getElementById('editPostContent').value = content;
+        document.getElementById('editPostForm').action = `/edit_post/${postId}`;
+        document.getElementById('editPostModal').classList.remove('hidden');
+    }
+    function closeEditPostModal() { document.getElementById('editPostModal').classList.add('hidden'); }
+
+    function openDeleteReasonModal(postId) {
+        const modal = document.getElementById('deleteReasonModal');
+        const form = document.getElementById('deleteReasonForm');
+        form.action = `/delete_post/${postId}`;
+        modal.classList.remove('hidden');
+    }
+    function closeDeleteReasonModal() { document.getElementById('deleteReasonModal').classList.add('hidden'); }
+
+    function openReportModal(postId) {
+        const modal = document.getElementById('reportModal');
+        const form = document.getElementById('reportForm');
+        form.action = `/report_post/${postId}`;
+        modal.classList.remove('hidden');
+    }
+    function closeReportModal() { document.getElementById('reportModal').classList.add('hidden'); }
+
+    function removeToast(toastElement) {
+        if (!toastElement) return;
+        toastElement.style.opacity = '0';
+        setTimeout(() => { toastElement.remove(); }, 400);
+    }
+
+    function toggleDropdown(event) {
+        event.stopPropagation();
+        document.getElementById('friendsModal')?.classList.add('hidden'); 
+        document.getElementById('notificationsModal')?.classList.add('hidden'); 
+        closeModDrawer();
+        document.getElementById('userDropdown')?.classList.toggle('hidden');
+    }
+
+    function toggleFriendsModal(event) {
+        event.stopPropagation();
+        document.getElementById('userDropdown')?.classList.add('hidden'); 
+        document.getElementById('notificationsModal')?.classList.add('hidden'); 
+        closeModDrawer();
+        const modal = document.getElementById('friendsModal');
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) loadFriendsAndRequests();
+    }
+
+    function toggleNotificationsModal(event) {
+        event.stopPropagation();
+        document.getElementById('userDropdown')?.classList.add('hidden'); 
+        document.getElementById('friendsModal')?.classList.add('hidden'); 
+        closeModDrawer();
+        const modal = document.getElementById('notificationsModal');
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) loadNotifications();
+    }
+
+    function toggleModDrawer(event) {
+        event.stopPropagation();
+        document.getElementById('userDropdown')?.classList.add('hidden'); 
+        document.getElementById('friendsModal')?.classList.add('hidden'); 
+        document.getElementById('notificationsModal')?.classList.add('hidden'); 
+        const drawer = document.getElementById('modDrawer');
+        const overlay = document.getElementById('modDrawerOverlay');
+        if (drawer && drawer.classList.contains('translate-x-full')) {
+            drawer.classList.remove('translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            closeModDrawer();
+        }
+    }
+
+    function closeModDrawer() {
+        document.getElementById('modDrawer')?.classList.add('translate-x-full');
+        document.getElementById('modDrawerOverlay')?.classList.add('hidden');
+    }
+
+    function toggleLike(postId, buttonElement) {
+        fetch(`/like_post/${postId}`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const textSpan = document.getElementById(`like-text-${postId}`);
+                const countSpan = document.getElementById(`like-count-${postId}`);
+                countSpan.textContent = `(${data.likes_count})`;
+                if (data.liked) {
+                    textSpan.textContent = '❤️ Beğenildi';
+                    buttonElement.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border transition-all bg-rose-50 border-rose-200 text-rose-600 font-bold';
+                } else {
+                    textSpan.textContent = '🤍 Beğen';
+                    buttonElement.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border transition-all bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100';
+                }
+            }
+        });
+    }
+
+    function loadNotifications() {
+        fetch('/api/notifications')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('notificationsContainer');
+                const badge = document.getElementById('notifBadge');
+                container.innerHTML = '';
+                if (!data.notifications || data.notifications.length === 0) {
+                    container.innerHTML = `<div class="text-[11px] text-slate-400 text-center py-4">Henüz bildiriminiz yok.</div>`;
+                    return;
+                }
+                data.notifications.forEach(n => {
+                    const bgClass = n.is_read ? 'bg-slate-50 border-slate-100' : 'bg-indigo-50/60 border-indigo-100 font-medium';
+                    let contentHtml = n.content;
+                    let modernArchiveIcon = `<svg class="w-4 h-4 text-rose-600 shrink-0 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>`;
+                    
+                    if (n.content.includes('sildi') || n.content.includes('silindi')) {
+                        const safeText = n.content.replace(/"/g, '&quot;');
+                        let cleanContent = n.content.replace(/^[^\w\s]+/, '').trim();
+                        contentHtml = `<span onclick="showDeletedPostDetail('${safeText}')" class="cursor-pointer hover:text-indigo-600 block">${modernArchiveIcon} ${cleanContent} <span class="text-[10px] text-indigo-500 font-semibold underline block mt-0.5 ml-5.5">Detayları gör &rarr;</span></span>`;
+                    } else if (n.post_id) {
+                        contentHtml = `<a href="/post/${n.post_id}" onclick="document.getElementById('notificationsModal').classList.add('hidden')" class="hover:text-indigo-600 block">${n.content}</a>`;
+                    }
+
+                    container.innerHTML += `
+                        <div id="notif-${n.id}" class="${bgClass} p-3 rounded-xl border text-xs flex items-center justify-between gap-2 transition-all">
+                            <div class="space-y-1 flex-1"><div>${contentHtml}</div><span class="block text-[9px] text-slate-400 font-mono">${n.created_at}</span></div>
+                            <button type="button" onclick="deleteSingleNotification(${n.id}, event)" class="shrink-0 text-slate-400 hover:text-rose-600 p-1.5 rounded-lg transition-colors font-bold text-xs z-10" title="Bildirimi Sil">✕</button>
+                        </div>`;
+                });
+                if (data.unread_count > 0) {
+                    fetch('/notifications/mark_read', { method: 'POST' }).then(() => { if (badge) badge.remove(); });
+                }
+            });
+    }
+
+    function showDeletedPostDetail(content) {
+        document.getElementById('notificationsModal').classList.add('hidden');
+        let cleanText = content.replace(/^[^\w\s]+/, '').trim();
+        document.getElementById('deletedPostDetailContent').innerHTML = cleanText.replace(/\\n/g, '<br>');
+        document.getElementById('deletedPostDetailModal').classList.remove('hidden');
+    }
+
+    function deleteSingleNotification(notifId, event) {
+        event.stopPropagation();
+        event.preventDefault();
+        fetch(`/notifications/delete/${notifId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById(`notif-${notifId}`)?.remove();
+                    const container = document.getElementById('notificationsContainer');
+                    if (container && container.children.length === 0) container.innerHTML = `<div class="text-[11px] text-slate-400 text-center py-4">Henüz bildiriminiz yok.</div>`;
+                }
+            });
+    }
+
+    function loadFriendsAndRequests() {
+        fetch('/api/friends_and_requests')
+            .then(response => response.json())
+            .then(data => {
+                const requestsContainer = document.getElementById('incomingRequestsContainer');
+                const outgoingContainer = document.getElementById('outgoingRequestsContainer');
+                const friendsContainer = document.getElementById('friendsListContainer');
+
+                requestsContainer.innerHTML = (!data.incoming || data.incoming.length === 0) ? `<div class="text-[11px] text-slate-400 text-center py-1">Bekleyen istek yok</div>` : '';
+                data.incoming?.forEach(req => {
+                    requestsContainer.innerHTML += `<div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100"><a href="/profile/${req.sender_id}" class="text-xs font-semibold text-slate-700 hover:text-indigo-600 truncate max-w-[120px]">${req.username}</a><div class="flex items-center space-x-1"><button onclick="executeAction('/respond_friend_request/${req.id}/accept', this)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded-lg">Kabul</button><button onclick="executeAction('/respond_friend_request/${req.id}/reject', this)" class="bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg">Red</button></div></div>`;
+                });
+
+                outgoingContainer.innerHTML = (!data.outgoing || data.outgoing.length === 0) ? `<div class="text-[11px] text-slate-400 text-center py-1">Giden istek yok</div>` : '';
+                data.outgoing?.forEach(req => {
+                    outgoingContainer.innerHTML += `<div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100"><a href="/profile/${req.receiver_id}" class="text-xs font-semibold text-slate-700 hover:text-indigo-600 truncate max-w-[130px]">${req.username}</a><button onclick="executeAction('/cancel_friend_request/${req.receiver_id}', this)" class="bg-slate-200 hover:bg-rose-600 hover:text-white text-slate-600 text-[10px] font-bold px-2 py-1 rounded-lg">İptal Et</button></div>`;
+                });
+
+                friendsContainer.innerHTML = (!data.friends || data.friends.length === 0) ? `<div class="text-[11px] text-slate-400 text-center py-1">Henüz arkadaşınız yok</div>` : '';
+                data.friends?.forEach(friend => {
+                    const avatarHtml = friend.profile_pic && friend.profile_pic !== 'None' && friend.profile_pic !== '' && friend.profile_pic !== 'default.png' ? `<img src="/static/profile_pics/${friend.profile_pic}" class="w-6 h-6 rounded-full object-cover border border-slate-200 shrink-0">` : `<div class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px] font-bold border border-indigo-100 shrink-0">${friend.username[0].toUpperCase()}</div>`;
+                    friendsContainer.innerHTML += `<div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-100"><a href="/profile/${friend.id}" class="flex items-center space-x-2 min-w-0 group mr-2">${avatarHtml}<span class="text-xs font-semibold text-slate-700 group-hover:text-indigo-600 truncate max-w-[100px]">${friend.username}</span></a><button onclick="executeAction('/remove_friend/${friend.id}', this)" class="bg-rose-50 hover:bg-rose-600 text-white text-[10px] font-semibold px-2 py-1 rounded-lg shrink-0">Sil</button></div>`;
+                });
+            });
+    }
+
+    function executeAction(url, buttonElement) {
+        fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(() => loadFriendsAndRequests());
+    }
+
+    let searchTimeout = null;
+    function searchUsers(event) {
+        clearTimeout(searchTimeout);
+        const query = document.getElementById('userSearchInput').value.trim();
+        const resultsDiv = document.getElementById('searchResults');
+        if (query.length === 0) { resultsDiv.innerHTML = ''; resultsDiv.classList.add('hidden'); return; }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`/search_users?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultsDiv.innerHTML = (!data || data.length === 0) ? `<div class="px-4 py-3 text-xs text-slate-400 text-center">Kullanıcı bulunamadı</div>` : '';
+                    data?.forEach(u => {
+                        const avatarHtml = u.profile_pic && u.profile_pic !== 'None' && u.profile_pic !== '' && u.profile_pic !== 'default.png' ? `<img src="/static/profile_pics/${u.profile_pic}" class="w-7 h-7 rounded-full object-cover border shrink-0">` : `<div class="w-7 h-7 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold border shrink-0">${u.username[0].toUpperCase()}</div>`;
+                        let actionButton = '';
+                        if (u.id !== currentUserId) {
+                            if (u.friend_status === 'none') actionButton = `<button onclick="executeAction('/send_friend_request/${u.id}', this)" class="text-[11px] font-semibold bg-indigo-600 text-white px-2.5 py-1 rounded-lg">Ekle</button>`;
+                            else if (u.friend_status === 'sent_pending') actionButton = `<button onclick="executeAction('/cancel_friend_request/${u.id}', this)" class="bg-slate-100 hover:bg-rose-600 text-slate-600 hover:text-white font-medium px-2.5 py-1 rounded-lg text-[10px]">İptal Et</button>`;
+                            else if (u.friend_status === 'received_pending') actionButton = `<span class="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-0.5 rounded-md">İstek Var</span>`;
+                            else if (u.friend_status === 'friends') actionButton = `<span class="text-[10px] bg-emerald-50 text-emerald-600 font-semibold px-2 py-0.5 rounded-md">Arkadaş</span>`;
+                        }
+                        resultsDiv.innerHTML += `<div class="flex items-center justify-between px-3 py-2 hover:bg-indigo-50/70 border-b border-slate-50 last:border-none"><a href="/profile/${u.id}" class="flex items-center space-x-2.5 min-w-0 mr-2 group">${avatarHtml}<div class="flex flex-col min-w-0"><span class="text-xs font-semibold text-slate-700 group-hover:text-indigo-600 truncate max-w-[100px]">${u.username}</span></div></a><div class="shrink-0">${actionButton}</div></div>`;
+                    });
+                    resultsDiv.classList.add('hidden');
+                    resultsDiv.classList.remove('hidden');
+                });
+        }, 250);
+    }
+
+    window.addEventListener('click', function(event) {
+        if (!event.target.closest('#userDropdown') && !event.target.closest('button[onclick*="toggleDropdown"]')) document.getElementById('userDropdown')?.classList.add('hidden');
+        if (!event.target.closest('#friendsModal') && !event.target.closest('button[onclick*="toggleFriendsModal"]')) document.getElementById('friendsModal')?.classList.add('hidden');
+        if (!event.target.closest('#notificationsModal') && !event.target.closest('button[onclick*="toggleNotificationsModal"]')) document.getElementById('notificationsModal')?.classList.add('hidden');
+    });
+    </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rol Düzenle</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+
+    <div class="max-w-xl w-full mx-auto space-y-6">
+        
+        <!-- BAŞLIK KARTI -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">Rol Düzenle: <span class="text-indigo-600">{{ role.name }}</span></h1>
+                <p class="text-xs text-slate-500 mt-0.5">Bu rolün ismini, açıklamasını ve renk ayarlarını güncelleyebilirsiniz.</p>
+            </div>
+            <a href="{{ url_for('manage_roles') }}" class="inline-flex items-center px-3.5 py-2 bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-all">
+                &larr; Geri Dön
+            </a>
+        </div>
+
+        <!-- FLASH MESAJLARI -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="space-y-3">
+              {% for category, message in messages %}
+                <div class="p-4 rounded-2xl text-sm font-medium border shadow-sm {% if category == 'error' %}bg-rose-50 text-rose-700 border-rose-200{% else %}bg-emerald-50 text-emerald-700 border-emerald-200{% endif %}">
+                    {{ message }}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- FORM KARTI -->
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 sm:p-8">
+            <form action="{{ url_for('edit_role', role_id=role.id) }}" method="POST" accept-charset="UTF-8" class="space-y-6">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+
+                <!-- Rol Adı -->
+                <div>
+                    <label for="name" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Rol İsmi</label>
+                    <input type="text" id="name" name="name" value="{{ role.name }}" required
+                           class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50">
+                </div>
+
+                <!-- Rol Açıklaması -->
+                <div>
+                    <label for="description" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Rol Açıklaması</label>
+                    <input type="text" id="description" name="description" value="{{ role.description if role.description else '' }}" placeholder="Rol sorumluluklarını açıklayın..."
+                           class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all bg-slate-50/50">
+                </div>
+
+                <!-- Öncelik ve Renk -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label for="priority" class="block text-xs font-semibold uppercase tracking-wider text-slate-500">Öncelik Derecesi</label>
+                            {% if not current_user.is_admin %}
+                                <span class="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/50">Salt Okunur</span>
+                            {% endif %}
+                        </div>
+                        <input type="number" id="priority" name="priority" value="{{ role.priority }}" min="1" required
+                               {% if not current_user.is_admin %}disabled{% endif %}
+                               class="w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono {% if not current_user.is_admin %}bg-slate-100 opacity-80 cursor-not-allowed{% else %}bg-slate-50/50{% endif %}">
+                    </div>
+                    <div>
+                        <label for="color" class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Rol Metin Rengi</label>
+                        <div class="flex items-center space-x-3 bg-slate-50/50 border border-slate-200 rounded-2xl px-4 py-2 h-[46px]">
+                            <input type="color" id="color" name="color" value="{{ role.color or '#4f46e5' }}"
+                                   class="w-8 h-8 rounded-xl border-0 cursor-pointer bg-transparent">
+                            <span class="text-xs font-mono font-semibold text-slate-600">Renk Seç</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Yetkiler Matrisi -->
+                <div class="bg-slate-50/80 rounded-2xl p-5 border border-slate-200/60 space-y-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-600">Rol Yetkileri ve Delegasyon</p>
+                        {% if not current_user.is_admin %}
+                            <span class="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/50">Salt Okunur</span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="space-y-2.5">
+                        <!-- 1. Silme Yetkisi -->
+                        <div class="p-3.5 rounded-xl border shadow-2xs space-y-2 {% if not current_user.is_admin %}bg-slate-100 border-slate-200 opacity-90{% else %}bg-white border-slate-200/70{% endif %}">
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %}">
+                                <input type="checkbox" name="can_delete_users" {% if role.can_delete_users %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-sm font-semibold text-slate-700">Kullanıcı Silme Yetkisi</span>
+                            </label>
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %} pl-7 pt-1.5 border-t border-slate-200/50">
+                                <input type="checkbox" name="can_grant_delete_permission" {% if role.can_grant_delete_permission %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-xs text-slate-500">Başkalarına Silme Yetkisi Verebilme</span>
+                            </label>
+                        </div>
+
+                        <!-- 2. Puan Değiştirme -->
+                        <div class="p-3.5 rounded-xl border shadow-2xs space-y-2 {% if not current_user.is_admin %}bg-slate-100 border-slate-200 opacity-90{% else %}bg-white border-slate-200/70{% endif %}">
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %}">
+                                <input type="checkbox" name="can_edit_points" {% if role.can_edit_points %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-sm font-semibold text-slate-700">Puan Değiştirme Yetkisi</span>
+                            </label>
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %} pl-7 pt-1.5 border-t border-slate-200/50">
+                                <input type="checkbox" name="can_grant_points_permission" {% if role.can_grant_points_permission %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-xs text-slate-500">Başkalarına Puan Yetkisi Verebilme</span>
+                            </label>
+                        </div>
+
+                        <!-- 3. Rol Atama -->
+                        <div class="p-3.5 rounded-xl border shadow-2xs space-y-2 {% if not current_user.is_admin %}bg-slate-100 border-slate-200 opacity-90{% else %}bg-white border-slate-200/70{% endif %}">
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %}">
+                                <input type="checkbox" name="can_assign_roles" {% if role.can_assign_roles %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-sm font-semibold text-slate-700">Rol Atama Yetkisi</span>
+                            </label>
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %} pl-7 pt-1.5 border-t border-slate-200/50">
+                                <input type="checkbox" name="can_grant_role_permission" {% if role.can_grant_role_permission %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-xs text-slate-500">Başkalarına Rol Verme Yetkisi Verebilme</span>
+                            </label>
+                        </div>
+
+                        <!-- 4. Ban Yetkisi -->
+                        <div class="p-3.5 rounded-xl border shadow-2xs space-y-2 {% if not current_user.is_admin %}bg-slate-100 border-slate-200 opacity-90{% else %}bg-white border-slate-200/70{% endif %}">
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %}">
+                                <input type="checkbox" name="can_ban_users" {% if role.can_ban_users %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-sm font-semibold text-slate-700">Kullanıcılara Ban Atabilme Yetkisi</span>
+                            </label>
+                            <label class="flex items-center space-x-3 {% if not current_user.is_admin %}cursor-not-allowed{% else %}cursor-pointer{% endif %} pl-7 pt-1.5 border-t border-slate-200/50">
+                                <input type="checkbox" name="can_grant_ban_permission" {% if role.can_grant_ban_permission %}checked{% endif %} {% if not current_user.is_admin %}disabled{% endif %} class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-50">
+                                <span class="text-xs text-slate-500">Başkalarına Ban Atma Yetkisi Verebilme</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Butonlar -->
+                <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <a href="{{ url_for('manage_roles') }}" class="px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all">
+                        İptal
+                    </a>
+                    <button type="submit" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-emerald-600/20 transition-all">
+                        Değişiklikleri Kaydet
+                    </button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ user.username }} - Profil</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-slide-down {
+            animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen py-10 px-4 sm:px-6 lg:px-8 relative">
+
+    <!-- SAĞ ÜST KÖŞE MODERN TOAST POP-UP BİLDİRİMLERİ -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col space-y-3 max-w-sm w-full px-4 pointer-events-none">
+          {% for category, message in messages %}
+            <div class="toast-item pointer-events-auto animate-slide-down flex items-center p-4 rounded-2xl text-xs sm:text-sm font-medium shadow-xl border backdrop-blur-md transition-all duration-500
+                        {% if category == 'error' %}
+                            bg-rose-900/90 text-white border-rose-700 shadow-rose-900/20
+                        {% else %}
+                            bg-slate-900/90 text-white border-slate-800 shadow-slate-900/20
+                        {% endif %}">
+                
+                <!-- Durum İkonu -->
+                <div class="shrink-0 mr-3">
+                    {% if category == 'error' %}
+                        <div class="w-7 h-7 rounded-xl bg-rose-500/20 flex items-center justify-center text-rose-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                    {% else %}
+                        <div class="w-7 h-7 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Mesaj İçeriği -->
+                <div class="flex-1 tracking-tight leading-relaxed">
+                    {{ message }}
+                </div>
+
+                <!-- Kapatma Butonu -->
+                <button onclick="removeToast(this.closest('.toast-item'))" class="shrink-0 ml-3 text-slate-400 hover:text-white transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="max-w-3xl mx-auto space-y-6 px-4">
+        
+        <!-- Üst Navigasyon -->
+        <div class="flex justify-between items-center">
+            <a href="{{ url_for('index') }}" class="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center gap-1">
+                &larr; Ana Sayfaya Dön
+            </a>
+        </div>
+
+        <!-- Profil Kartı -->
+        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+                
+                <!-- Kullanıcı Bilgileri -->
+                <div class="flex items-center space-x-4">
+                    <div class="w-20 h-20 rounded-2xl overflow-hidden shrink-0 border-2 border-indigo-100 shadow-sm bg-indigo-50 flex items-center justify-center">
+                        {% if user.profile_pic and user.profile_pic != 'default.png' %}
+                            <img src="{{ url_for('static', filename='profile_pics/' + user.profile_pic) }}" 
+                                 alt="{{ user.username }}" 
+                                 class="w-full h-full object-cover">
+                        {% else %}
+                            <div class="w-full h-full bg-indigo-100 flex items-center justify-center text-2xl font-bold text-indigo-600">
+                                {{ user.username[0] | upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-900 tracking-tight">{{ user.username }}</h2>
+                        <p class="text-sm text-slate-500">{{ user.email }}</p>
+                        <p class="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-1">
+                            <span>Üyelik Rolü:</span> 
+                            {% if user.roles %}
+                                {% for role in user.roles %}
+                                    <span class="inline-block px-2 py-0.5 text-[10px] rounded-md font-bold text-white shadow-xs" style="background-color: {{ role.color or '#4f46e5' }};">
+                                        {{ role.name }}
+                                    </span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="font-medium text-slate-600">Standart Kullanıcı</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Butonlar -->
+                <div class="w-full sm:w-auto flex flex-col sm:flex-row flex-wrap items-center gap-2">
+                    {% if current_user.is_authenticated and current_user.id != user.id %}
+                        <a href="{{ url_for('messages', recipient_id=user.id) }}" class="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl shadow-md transition-all text-xs gap-1.5">
+                            ✉️ Mesaj Gönder
+                        </a>
+                        {% if friend_status == 'none' %}
+                            <form action="{{ url_for('send_friend_request', user_id=user.id) }}" method="POST">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <button type="submit" class="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition-all text-xs">+ Arkadaş Ekle</button>
+                            </form>
+                        {% elif friend_status == 'sent_pending' %}
+                            <form action="{{ url_for('cancel_friend_request', user_id=user.id) }}" method="POST" class="inline">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <button type="submit" class="bg-slate-200 hover:bg-rose-600 text-slate-600 hover:text-white font-semibold px-4 py-2.5 rounded-xl transition-all text-xs">İsteği İptal Et</button>
+                            </form>
+                        {% elif friend_status == 'received_pending' %}
+                            <a href="{{ url_for('index') }}" class="inline-block px-4 py-2.5 bg-amber-500 text-white font-semibold rounded-xl text-xs shadow-md">İstek Bekleniyor</a>
+                        {% elif friend_status == 'friends' %}
+                            <form action="{{ url_for('remove_friend', user_id=user.id) }}" method="POST">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <button type="submit" class="w-full sm:w-auto px-4 py-2.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white font-semibold rounded-xl text-xs transition-all border border-rose-100">Arkadaşlıktan Çıkar</button>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+            </div>
+
+            <!-- YÖNETİM PANELİ (Yetkililer için) -->
+            {% if current_user.is_authenticated and (current_user.is_admin or current_user.has_points_permission() or current_user.has_delete_permission() or current_user.has_assign_role_permission() or current_user.can_ban_users) %}
+            <div class="mt-6 pt-6 border-t border-slate-100">
+                
+                <button type="button" onclick="toggleMoreInfo()" 
+                        class="inline-flex items-center space-x-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-all border border-indigo-100 focus:outline-none shadow-xs">
+                    <svg id="moreInfoIcon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                    <span id="moreInfoText">Daha Fazla Bilgi Göster</span>
+                </button>
+
+                <!-- Gizlenebilir Yönetim Paneli -->
+                <div id="moreInfoPanel" class="hidden mt-4 p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4 transition-all duration-200">
+                    
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-200">
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                            🛡️ Kullanıcı Yönetim Paneli
+                        </span>
+                        <span class="text-[10px] font-bold bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-md border border-rose-200">
+                            Yetkili Görünümü
+                        </span>
+                    </div>
+
+                    <!-- 1. PUAN GÜNCELLEME -->
+                    {% if current_user.is_admin or current_user.has_points_permission() %}
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                            <label class="block text-xs font-semibold text-slate-700">Puan Değiştir (Mevcut Puan: <span class="text-indigo-600 font-bold font-mono">{{ user.points if user.points is not none else 0 }}</span>)</label>
+                            <form action="{{ url_for('user_profile', user_id=user.id) }}" method="POST" class="flex items-center gap-2">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <input type="hidden" name="action_type" value="add_points">
+                                <input type="number" name="points" placeholder="Eklenecek puan miktar..." required class="flex-1 text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none focus:border-indigo-500">
+                                <button type="submit" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 rounded-xl shadow-xs transition-all">Puan Ekle</button>
+                            </form>
+                        </div>
+                    {% endif %}
+
+                    <!-- 2. ROL YÖNETİMİ -->
+                    {% if (current_user.is_admin or current_user.has_assign_role_permission()) and all_roles %}
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                            <label class="block text-xs font-semibold text-slate-700">Rol Yönetimi (Ekle / Çıkar)</label>
+                            <div class="flex flex-wrap gap-2">
+                                {% for role in all_roles %}
+                                    <form action="{{ url_for('toggle_role', user_id=user.id, role_id=role.id) }}" method="POST" class="inline">
+                                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                        {% if role in user.roles %}
+                                            <button type="submit" class="text-xs px-3 py-1.5 rounded-xl text-white font-semibold shadow-xs transition-all" style="background-color: {{ role.color or '#333' }};">
+                                                ✓ {{ role.name }} <span class="text-[10px] bg-black/20 px-1 rounded ml-1">Kaldır</span>
+                                            </button>
+                                        {% else %}
+                                            <button type="submit" class="text-xs px-3 py-1.5 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 font-semibold border border-slate-200 transition-all">
+                                                + {{ role.name }} Ekle
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- 3. KULLANICIYA BAN ATMA SİSTEMİ -->
+                    {% if current_user.id != user.id and (current_user.is_admin or current_user.can_ban_users) %}
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-semibold text-slate-700">Kullanıcı Ban Yönetimi</label>
+                                <span class="text-[11px] font-bold bg-rose-50 text-rose-600 px-2.5 py-0.5 rounded-full border border-rose-100">
+                                    Toplam Ban: {{ user.bans_received | length if user.bans_received else 0 }}
+                                </span>
+                            </div>
+
+                            <form action="{{ url_for('ban_user', user_id=user.id) }}" method="POST" class="space-y-2.5">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <select name="duration" required class="text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none text-slate-700 focus:border-rose-500">
+                                        <option value="1">1 Saat Ban</option>
+                                        <option value="24">24 Saat Ban</option>
+                                        <option value="48">48 Saat Ban</option>
+                                        <option value="72">72 Saat Ban</option>
+                                        <option value="unlimited">Sınırsız (Perma) Ban</option>
+                                    </select>
+                                    <input type="text" name="reason" placeholder="Ban Sebebi (Opsiyonel)" class="text-xs bg-slate-50 border border-slate-300 rounded-xl p-2.5 outline-none text-slate-700 focus:border-rose-500">
+                                </div>
+
+                                <button type="submit" onclick="return confirm('Bu kullanıcıyı banlamak istediğinize emin misiniz?');" class="w-full text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2.5 rounded-xl transition-all shadow-md">
+                                    Kullanıcıya Ban Uygula
+                                </button>
+                            </form>
+
+                            <!-- Geçmiş Ban Kayıtları ve Kaldırma Alanı -->
+                            {% if user.bans_received %}
+                                <div class="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-wide">Aktif / Geçmiş Banlar:</span>
+                                    <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                        {% for ban in user.bans_received %}
+                                            {% set is_expired = ban.expires_at and ban.expires_at < now %}
+                                            <div class="flex items-center justify-between p-2.5 rounded-xl border text-xs transition-colors {% if is_expired %}bg-slate-100/80 border-slate-200 opacity-75{% else %}bg-slate-50 border-slate-200/80{% endif %}">
+                                                <div class="space-y-1">
+                                                    <div class="flex items-center space-x-2">
+                                                        <span class="font-bold {% if is_expired %}text-slate-400 line-through{% else %}text-rose-600{% endif %}">
+                                                            {% if ban.expires_at %} Bitiş: {{ ban.expires_at.strftime('%d.%m.%Y %H:%M') }} {% else %} Sınırsız Ban {% endif %}
+                                                        </span>
+                                                        {% if not ban.expires_at %}
+                                                            <span class="bg-rose-100 text-rose-700 font-bold text-[9px] px-1.5 py-0.5 rounded">Perma</span>
+                                                        {% elif is_expired %}
+                                                            <span class="bg-slate-200 text-slate-600 font-bold text-[9px] px-1.5 py-0.5 rounded">Süresi Doldu</span>
+                                                        {% else %}
+                                                            <span class="bg-emerald-100 text-emerald-700 font-bold text-[9px] px-1.5 py-0.5 rounded">Aktif</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    
+                                                    <div class="flex flex-wrap items-center gap-x-3 text-[11px] text-slate-500">
+                                                        <span>Süre: 
+                                                            <strong class="text-slate-700">
+                                                                {% if ban.expires_at and ban.timestamp %}
+                                                                    {% set diff_seconds = (ban.expires_at - ban.timestamp).total_seconds() %}
+                                                                    {% set diff_hours = (diff_seconds / 3600) | round(0, 'common') | int %}
+                                                                    {% if diff_hours >= 24 %}
+                                                                        {{ (diff_hours / 24) | int }} Gün ({{ diff_hours }} Saat)
+                                                                    {% else %}
+                                                                        {{ diff_hours }} Saat
+                                                                    {% endif %}
+                                                                {% else %}
+                                                                    Sınırsız (Perma)
+                                                                {% endif %}
+                                                            </strong> 
+                                                        </span>
+                                                        <span>Sebep: <span class="text-slate-700 font-medium">{{ ban.reason or 'Belirtilmedi' }}</span></span>
+                                                    </div>
+                                                </div>
+                                                
+                                                {% if current_user.is_admin %}
+                                                    <form action="{{ url_for('remove_ban', ban_id=ban.id) }}" method="POST" class="inline">
+                                                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                                        <button type="submit" onclick="return confirm('Bu ban kaydını kaldırmak istiyor musunuz?');" class="bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-600 px-2.5 py-1 rounded-lg transition-colors font-semibold text-[11px] border border-rose-200">
+                                                            Kaldır
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <!-- 🛡️ 4. YETKİLİNİN / MODERATÖRÜN EYLEMLERİNİ GÖRÜNTÜLE TUŞU (Sadece Admin Görür) -->
+                    {% if current_user.is_admin %}
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">🛡️ Yetkilinin / Moderatörün Eylemleri</label>
+                                <button type="button" onclick="toggleModActionsModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+                                    🔍 Eylemleri Göster Tuşu
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-400">Bu kullanıcının yetkilerini kullanarak sitede gerçekleştirdiği tüm silme, banlama, puan verme ve rol yönetim eylemlerini açılan pencerede inceleyebilirsiniz.</p>
+                        </div>
+
+                        <!-- MODERATÖR EYLEMLERİ GÖRÜNTÜLEME MODALI (POP-UP) -->
+                        <div id="modActionsModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div class="bg-white rounded-3xl p-6 max-w-2xl w-full space-y-4 shadow-2xl border border-slate-100 animate-slide-down max-h-[85vh] flex flex-col">
+                                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                                    <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide flex items-center gap-2">
+                                        📜 @{{ user.username }} Kullanıcısının Eylem Geçmişi
+                                    </h3>
+                                    <button type="button" onclick="closeModActionsModal()" class="text-slate-400 hover:text-slate-600 text-xs font-bold p-1 rounded-lg">✕</button>
+                                </div>
+
+                                <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+                                    <!-- Bölüm A: Sildiği Gönderiler -->
+                                    <div class="space-y-2">
+                                        <h4 class="text-xs font-bold text-indigo-600 uppercase tracking-wider">🗑️ Sildiği / Arşivlediği Gönderiler ({{ mod_deleted_posts | length }})</h4>
+                                        {% if mod_deleted_posts %}
+                                            {% for mp in mod_deleted_posts %}
+                                                <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1 text-xs">
+                                                    <div class="flex items-center justify-between text-[11px] text-slate-500">
+                                                        <span>Hedef Sahip: <strong class="text-slate-700">@{{ mp.author.username if mp.author else 'Bilinmeyen' }}</strong></span>
+                                                        <span class="font-mono text-[10px] text-slate-400">{{ mp.deleted_at.strftime('%d.%m.%Y %H:%M') if mp.deleted_at else '-' }}</span>
+                                                    </div>
+                                                    <p class="text-slate-700"><strong>İçerik:</strong> {{ mp.content }}</p>
+                                                    <p class="text-rose-600 font-medium text-[11px]"><strong>Sebep:</strong> {{ mp.delete_reason if mp.delete_reason else 'Belirtilmemiş' }}</p>
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="text-xs text-slate-400 italic py-1">Kayıtlı silme eylemi bulunmuyor.</p>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Bölüm B: Diğer Sistem Logları / Yetki Hareketleri (Ban, Puan, Rol vb.) -->
+                                    <div class="space-y-2 pt-3 border-t border-slate-100">
+                                        <h4 class="text-xs font-bold text-amber-600 uppercase tracking-wider">⚙️ Diğer Yetki Hareketleri (Ban, Puan, Rol vb.) ({{ user_logs | length }})</h4>
+                                        {% if user_logs %}
+                                            {% for log in user_logs %}
+                                                <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs flex justify-between items-center gap-2">
+                                                    <span class="text-slate-700 font-medium">{{ log.action or log.description or log.message }}</span>
+                                                    <span class="font-mono text-[10px] text-slate-400 shrink-0">{{ log.timestamp.strftime('%d.%m.%Y %H:%M') if log.timestamp else '-' }}</span>
+                                                </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <p class="text-xs text-slate-400 italic py-1">Bu kullanıcıya ait ek bir sistem logu / yetki hareketi bulunmuyor.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-end pt-2 border-t border-slate-100">
+                                    <button type="button" onclick="closeModActionsModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-xl">Kapat</button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <!-- 5. DİĞER İŞLEMLER (Detaylı Düzenle & Sil) -->
+                    <div class="flex flex-wrap gap-2 pt-2 border-t border-slate-200">
+                        {% if current_user.is_admin or current_user.has_assign_role_permission() %}
+                            <a href="{{ url_for('edit_user', user_id=user.id) }}" class="text-xs bg-slate-800 hover:bg-slate-900 text-white font-semibold px-4 py-2.5 rounded-xl shadow-xs transition-all">
+                                ✏️ Detaylı Düzenle & İzinler
+                            </a>
+                        {% endif %}
+
+                        {% if current_user.has_delete_permission() and current_user.id != user.id %}
+                            <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" onsubmit="return confirm('Bu hesabı silmek istediğinize emin misiniz?');" class="flex-1">
+                                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                                <button type="submit" class="w-full text-xs bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white font-bold py-2.5 px-4 rounded-xl border border-rose-200 transition-all">
+                                    🗑️ Hesabı Sil
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- ================= SEKME SİSTEMİ ================= -->
+        <div class="bg-white p-6 sm:p-8 rounded-3xl shadow-xl border border-slate-100 space-y-6">
+            
+            <!-- Şık Sekme Butonları -->
+            <div class="flex p-1.5 bg-slate-100 rounded-2xl">
+                <button onclick="switchTab('posts')" id="tabPostsBtn" class="flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl bg-white text-indigo-600 shadow-sm transition-all text-center">
+                    Gönderiler ({{ posts|length }})
+                </button>
+                <button onclick="switchTab('comments')" id="tabCommentsBtn" class="flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all text-center">
+                    Yorumlar ({{ comments|length }})
+                </button>
+            </div>
+
+            <!-- 1. GÖNDERİLER SEKME İÇERİĞİ -->
+            <div id="tabPostsContent" class="space-y-4">
+                {% if posts %}
+                    <form action="{{ url_for('user_profile', user_id=user.id) }}" method="POST" id="postsForm" class="space-y-4">
+                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                        <input type="hidden" name="action_type" value="posts">
+
+                        {% if is_admin %}
+                            <div class="flex items-center justify-between px-5 py-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 shadow-xs">
+                                <label class="text-xs font-semibold text-slate-700 flex items-center gap-2.5 cursor-pointer select-none">
+                                    <input type="checkbox" id="selectAllPosts" onclick="toggleAll('posts')" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"> 
+                                    Tümünü Seç
+                                </label>
+                                <button type="submit" onclick="return confirm('Seçilen gönderileri silmek istediğinize emin misiniz?');" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs transition-all shadow-sm">
+                                    🗑️ Seçilenleri Sil
+                                </button>
+                            </div>
+                        {% endif %}
+
+                        <div class="space-y-3">
+                            {% for post in posts %}
+                                <div class="group relative p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-indigo-200 hover:shadow-md transition-all duration-200 flex items-start gap-4">
+                                    {% if is_admin %}
+                                        <div class="pt-1 z-10">
+                                            <input type="checkbox" name="selected_items" value="{{ post.id }}" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Kartın tamamına tıklanıldığında tekil gönderi sayfasına gider -->
+                                    <a href="{{ url_for('view_single_post', post_id=post.id) }}" class="absolute inset-0 z-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"></a>
+
+                                    <div class="flex-1 min-w-0 space-y-2 pointer-events-none">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="font-semibold text-indigo-600 flex items-center gap-1.5">
+                                                {{ post.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                                {% if post.is_edited %}<span class="text-slate-400 font-normal italic">(Düzenlendi)</span>{% endif %}
+                                            </span>
+                                            
+                                            <div class="flex items-center gap-2">
+                                                <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-wider border border-slate-200/60">
+                                                    {{ post.visibility }}
+                                                </span>
+                                                <span class="text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
+                                                    Gönderiye Git &rarr;
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed line-clamp-3">{{ post.content }}</p>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                {% else %}
+                    <div class="py-12 text-center">
+                        <p class="text-sm font-medium text-slate-400 italic">Gösterilecek gönderi bulunmuyor.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- 2. YORUMLAR SEKME İÇERİĞİ -->
+            <div id="tabCommentsContent" class="space-y-4 hidden">
+                {% if comments %}
+                    <form action="{{ url_for('user_profile', user_id=user.id) }}" method="POST" id="commentsForm" class="space-y-4">
+                        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>{% endif %}
+                        <input type="hidden" name="action_type" value="comments">
+
+                        {% if is_admin %}
+                            <div class="flex items-center justify-between px-5 py-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 shadow-xs">
+                                <label class="text-xs font-semibold text-slate-700 flex items-center gap-2.5 cursor-pointer select-none">
+                                    <input type="checkbox" id="selectAllComments" onclick="toggleAll('comments')" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"> 
+                                    Tümünü Seç
+                                </label>
+                                <button type="submit" onclick="return confirm('Seçilen yorumları silmek istediğinize emin misiniz?');" class="text-xs bg-rose-600 hover:bg-rose-700 text-white font-medium px-4 py-2 rounded-xl transition-all shadow-sm">
+                                    🗑️ Seçilenleri Sil
+                                </button>
+                            </div>
+                        {% endif %}
+
+                        <div class="space-y-3">
+                            {% for comment in comments %}
+                                <div class="group relative p-5 rounded-2xl border border-slate-200/80 bg-white hover:border-indigo-200 hover:shadow-md transition-all duration-200 flex items-start gap-4">
+                                    {% if is_admin %}
+                                        <div class="pt-1 z-10">
+                                            <input type="checkbox" name="selected_items" value="{{ comment.id }}" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300">
+                                        </div>
+                                    {% endif %}
+                                    
+                                    <!-- Yorumun ait olduğu gönderinin detay sayfasına yönlendirir -->
+                                    <a href="{{ url_for('view_single_post', post_id=comment.post.id) }}" class="absolute inset-0 z-0 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20"></a>
+
+                                    <div class="flex-1 min-w-0 space-y-2 pointer-events-none">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-slate-400 font-medium">
+                                                {{ comment.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                                {% if comment.is_edited %}<span class="italic">(Düzenlendi)</span>{% endif %}
+                                            </span>
+                                            <span class="text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform inline-flex items-center gap-0.5">
+                                                Orijinal Gönderiye Git &rarr;
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{{ comment.content }}</p>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </form>
+                {% else %}
+                    <div class="py-12 text-center">
+                        <p class="text-sm font-medium text-slate-400 italic">Gösterilecek yorum bulunmuyor.</p>
+                    </div>
+                {% endif %}
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- JavaScript İşlevleri -->
+    <script>
+    function switchTab(tabName) {
+        const postsBtn = document.getElementById('tabPostsBtn');
+        const commentsBtn = document.getElementById('tabCommentsBtn');
+        const postsContent = document.getElementById('tabPostsContent');
+        const commentsContent = document.getElementById('tabCommentsContent');
+
+        if (tabName === 'posts') {
+            postsBtn.className = "flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl bg-white text-indigo-600 shadow-sm transition-all text-center";
+            commentsBtn.className = "flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all text-center";
+            postsContent.classList.remove('hidden');
+            commentsContent.classList.add('hidden');
+        } else {
+            commentsBtn.className = "flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl bg-white text-indigo-600 shadow-sm transition-all text-center";
+            postsBtn.className = "flex-1 py-3 text-xs sm:text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition-all text-center";
+            commentsContent.classList.remove('hidden');
+            postsContent.classList.add('hidden');
+        }
+    }
+
+    function toggleAll(type) {
+        const selectAllCheckbox = document.getElementById(`selectAll${type.charAt(0).toUpperCase() + type.slice(1)}`);
+        const form = document.getElementById(type === 'posts' ? 'postsForm' : 'commentsForm');
+        if (form) {
+            const checkboxes = form.querySelectorAll('input[name="selected_items"]');
+            checkboxes.forEach(cb => { cb.checked = selectAllCheckbox.checked; });
+        }
+    }
+
+    function toggleMoreInfo() {
+        const panel = document.getElementById('moreInfoPanel');
+        const icon = document.getElementById('moreInfoIcon');
+        const text = document.getElementById('moreInfoText');
+        if (!panel) return;
+        const isHidden = panel.classList.contains('hidden');
+        if (isHidden) {
+            panel.classList.remove('hidden');
+            icon.classList.add('rotate-180');
+            text.textContent = 'Daha Az Bilgi Göster';
+        } else {
+            panel.classList.add('hidden');
+            icon.classList.remove('rotate-180');
+            text.textContent = 'Daha Fazla Bilgi Göster';
+        }
+    }
+
+    function toggleModActionsModal() {
+        document.getElementById('modActionsModal').classList.remove('hidden');
+    }
+
+    function closeModActionsModal() {
+        document.getElementById('modActionsModal').classList.add('hidden');
+    }
+
+    function removeToast(toastElement) {
+        if (!toastElement) return;
+        toastElement.style.opacity = '0';
+        setTimeout(() => { toastElement.remove(); }, 400);
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll('.toast-item').forEach(toast => {
+            setTimeout(() => { removeToast(toast); }, 2000);
+        });
+    });
+    </script>
+</body>
+</html>
