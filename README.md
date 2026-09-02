@@ -36,11 +36,14 @@ Bu proje, Python ve Flask çatıları kullanılarak geliştirilmiş; gelişmiş 
    git clone [https://github.com/kullaniciadi/proje-adi.git](https://github.com/kullaniciadi/proje-adi.git)
    cd proje-adi
 2. Sanal ortamı oluşturup aktif hale getirin:
+   ```bash
    python -m venv venv
    source venv/bin/activate  # Windows için: venv\Scripts\activate
 3. Gerekli kütüphaneleri yükleyin:
+   ```bash
    pip install flask flask-sqlalchemy flask-login pyodbc werkzeug
 4. SQL Server LocalDB bağlantı ayarlarınızı app.py içerisindeki bağlantı dizesinden (params) kendi veritabanı adınıza göre güncelleyin[cite: 1].
-5. Uygulamayı çalıştırın:
+5.  Uygulamayı çalıştırın:
+   ```bash
    python app2.py
 6. Tarayıcınızda http://127.0.0.1:5000 adresine giderek sistemi kullanmaya başlayın.
