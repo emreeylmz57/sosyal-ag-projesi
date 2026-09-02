@@ -43,7 +43,7 @@ Bu proje, Python ve Flask çatıları kullanılarak geliştirilmiş; gelişmiş 
    ```bash
    pip install flask flask-sqlalchemy flask-login pyodbc werkzeug
 4. SQL Server LocalDB bağlantı ayarlarınızı app.py içerisindeki bağlantı dizesinden (params) kendi veritabanı adınıza göre güncelleyin[cite: 1].
-5.  Uygulamayı çalıştırın:
+5. Uygulamayı çalıştırın:
    ```bash
    python app2.py
-6. Tarayıcınızda http://127.0.0.1:5000 adresine giderek sistemi kullanmaya başlayın.
+6.  Tarayıcınızda http://127.0.0.1:5000 adresine giderek sistemi kullanmaya başlayın.
