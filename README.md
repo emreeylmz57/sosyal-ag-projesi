@@ -25,9 +25,11 @@ Bu proje, Python ve Flask çatıları kullanılarak geliştirilmiş; gelişmiş 
 
 ## 🛠️ Kullanılan Teknolojiler
 
-* **Backend:** Python, Flask, Flask-SQLAlchemy, Flask-Login, Werkzeug
-* **Veritabanı:** Microsoft SQL Server (LocalDB) / pyodbc (`ClientCharset=UTF8` Türkçe karakter desteğiyle)[cite: 1]
-* **Frontend:** HTML5, Tailwind CSS, JavaScript (Fetch API), Chart.js, SortableJS[cite: 1, 6, 11, 19]
+| Kategori | Teknolojiler & Araçlar |
+| :--- | :--- |
+| **Backend** | Python, Flask, Flask-SQLAlchemy, Flask-Login, Werkzeug[cite: 1] |
+| **Veritabanı** | Microsoft SQL Server (LocalDB) / pyodbc (`ClientCharset=UTF8` Türkçe karakter desteğiyle)[cite: 1] |
+| **Frontend & UI** | HTML5, Tailwind CSS, JavaScript (Fetch API), Chart.js, SortableJS[cite: 1, 6, 11, 19] |
 
 ## ⚙️ Kurulum ve Çalıştırma
 
