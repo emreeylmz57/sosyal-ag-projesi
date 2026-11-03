@@ -34,13 +34,15 @@ login_manager.login_message_category = 'error'
 # ---------------------------------------------------------
 # VERİTABANI BAĞLANTI AYARI (Dinamik Ortam Değişkeni)
 # ---------------------------------------------------------
-# Render/Bulut ortamında DATABASE_URL varsa PostgreSQL kullanır,
+# Render/Bulut ortamında DATABASE_URL varsa PostgreSQL kullanır (psycopg2 sürücüsü zorlanır),
 # yoksa bilgisayarınızdaki yerel SQL Server bağlantısına geçer.
 db_url = os.environ.get('DATABASE_URL')
 
 if db_url:
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
+        db_url = db_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif db_url.startswith("postgresql://") and not db_url.startswith("postgresql+psycopg2://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 else:
     params = urllib.parse.quote_plus(
