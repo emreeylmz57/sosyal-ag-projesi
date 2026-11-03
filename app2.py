@@ -58,6 +58,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# --- GEÇİCİ EKSİK KOLON EKLEME KODU ---
+with app.app_context():
+    try:
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_delete_comments BOOLEAN DEFAULT FALSE;"))
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_grant_delete_comments_permission BOOLEAN DEFAULT FALSE;"))
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_ban_users BOOLEAN DEFAULT FALSE;"))
+        db.session.execute(db.text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_grant_ban_permission BOOLEAN DEFAULT FALSE;"))
+        db.session.commit()
+        print("--> VERİTABANI KOLONLARI BAŞARIYLA EKLENDİ <--")
+    except Exception as e:
+        db.session.rollback()
+        print("--> KOLON EKLEME HATASI (ÖNEMSİZ):", e)
+# --------------------------------------
+
 with app.app_context():
     db.create_all()
 
